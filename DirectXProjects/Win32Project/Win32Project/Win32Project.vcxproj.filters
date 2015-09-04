@@ -44,6 +44,7 @@
     <FxCompile Include="Trivial_VS.hlsl" />
     <FxCompile Include="Transform_VS.hlsl" />
     <FxCompile Include="Transform_PS.hlsl" />
+    <FxCompile Include="DirectionalLight_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Trivial_PS.csh">

@@ -10,6 +10,7 @@ struct V_OUT
 {
 	float4 posH : SV_POSITION;
 	float4 ColH : COLOR;
+	float3 NrmH : NORMAL;
 };
 cbuffer OBJECT : register(b0)
 {
@@ -32,6 +33,11 @@ V_OUT main(V_IN input)
 	// TODO: Move into view space, then projection space
 	output.posH = localH;
 	output.ColH = float4(input.ColL,1);
+
+	output.NrmH = mul(input.NorL, worldMatrix);
+
+
+
 
 	return output; // send projected vertex to the rasterizer stage
 }

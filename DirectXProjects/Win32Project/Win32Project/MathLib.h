@@ -28,8 +28,9 @@ struct Matrix4x4
 
 struct VERTEX4
 {
-	float xyzw[4];
-	FLOAT RGBA[4];
+	float xyzw[3];
+	FLOAT RGBA[3];
+	float nrm[3];
 };
 
 struct VERTEX

@@ -25,12 +25,14 @@ public:
 	XMMATRIX WorldMatrix; // ZeroMemory called in Constructor;
 
 	ID3D11VertexShader *VertexShader = nullptr;
-	ID3D11PixelShader *PixelShader = nullptr;
+	ID3D11PixelShader *PixelShader[2];
 	ID3D11InputLayout *InputLayout = nullptr;
 
 	//could be more then one(consider array)
 	ID3D11ShaderResourceView *ShaderResourceView = nullptr;
 	ID3D11Texture2D *Texture2DBuffer = nullptr;
+
+	ID3D11SamplerState *SamplerState = nullptr;
 
 	Create_D3Object();
 	~Create_D3Object();
@@ -41,7 +43,6 @@ public:
 	ID3D11Buffer* GetIndexBuffer(){ return IndexBuffer; };
 	ID3D11Buffer* GetVertexBuffer(){ return VertexBuffer; };
 	ID3D11VertexShader* GetVertexShader(){ return VertexShader; };
-	ID3D11PixelShader* GetPixelShader(){ return PixelShader; };
 	ID3D11InputLayout* GetInputLayout(){ return InputLayout; };
 	ID3D11ShaderResourceView* GetShaderResourceView(){ return ShaderResourceView; };
 	ID3D11Texture2D* GetTexture2DBuffer(){ return Texture2DBuffer; };
@@ -52,7 +53,6 @@ public:
 	void SetIndexBuffer(ID3D11Buffer *NewIndexBuffer){ IndexBuffer = NewIndexBuffer; };
 	void SetVertexBuffer(ID3D11Buffer *NewVertexBuffer){ VertexBuffer = NewVertexBuffer; };
 	void SetVertexShader(ID3D11VertexShader *NewVertexShader){ VertexShader = NewVertexShader; };
-	void SetPixelShader(ID3D11PixelShader *NewPixelShader){ PixelShader = NewPixelShader; };
 	void SetInputLayout(ID3D11InputLayout *NewInputLayout){ InputLayout = NewInputLayout; };
 	void SetShaderResourceView(ID3D11ShaderResourceView *NewShaderResourceView){ ShaderResourceView = NewShaderResourceView; };
 	void SetTexture2DBuffer(ID3D11Texture2D *NewTextureBuffer){ Texture2DBuffer = NewTextureBuffer; };
@@ -67,6 +67,8 @@ Create_D3Object::Create_D3Object()
 {
 	ZeroMemory(&WorldMatrix, sizeof(WorldMatrix));
 	WorldMatrix = XMMatrixIdentity();
+	ZeroMemory(PixelShader, sizeof(PixelShader));
+
 
 };
 
@@ -84,8 +86,11 @@ Create_D3Object::~Create_D3Object()
 	SAFE_RELEASE(VertexShader);
 	SAFE_DELETE(VertexShader);
 	
-	SAFE_RELEASE(PixelShader);
-	SAFE_RELEASE(PixelShader);
+	SAFE_RELEASE(PixelShader[0]);
+	SAFE_DELETE(PixelShader[0]);
+
+	SAFE_RELEASE(PixelShader[1]);
+	SAFE_DELETE(PixelShader[1]);
 
 	SAFE_RELEASE(InputLayout);
 	SAFE_DELETE(InputLayout);
@@ -95,6 +100,9 @@ Create_D3Object::~Create_D3Object()
 
 	SAFE_RELEASE(Texture2DBuffer);
 	SAFE_DELETE(Texture2DBuffer);
+	
+	SAFE_RELEASE(SamplerState);
+	SAFE_DELETE(SamplerState);
 
 };
 

@@ -21,6 +21,7 @@
 #include "Trivial_PS.csh"
 #include "Transform_VS.csh"
 #include "Transform_PS.csh"
+#include "DirectionalLight_PS.csh"
 #include "Cube.h"
 #include "Tron.h"
 
@@ -64,12 +65,44 @@ class DEMO_APP
 
 	D3D11_VIEWPORT ViewPort;
 
-
-	XMMATRIX SV_WorldMatrix;
 	XMMATRIX SV_ViewMatrix;
 	XMMATRIX SV_Projection;
+	
 
-	Create_D3Object Cube_Object;
+
+	struct CONSTANTSCENE
+	{
+		XMMATRIX viewMatrix;
+		XMMATRIX projectionMatrix;
+	};
+
+
+	CONSTANTSCENE ConstantScene;
+	XMMATRIX WorldMatrixObject;
+
+
+	ID3D11Texture2D *DepthBuffer = nullptr;//cleared
+	ID3D11Texture2D *TextureBuffer = nullptr;//cleared
+	ID3D11DepthStencilView *DepthStencilView = nullptr;//cleared
+
+
+	ID3D11Buffer *AmbientLightBuffer = nullptr;//cleared
+
+	ID3D11Buffer *DirectionalLightBuffer = nullptr;//Cleared
+
+	struct DLIGHT
+	{
+		XMFLOAT4 Col;
+		XMFLOAT4 Direction;
+	};
+
+	DLIGHT Dlight;
+
+
+	
+	ID3D11BlendState *BlendState = nullptr;//cleared
+	ID3D11BlendState *BlendStateNULL = nullptr;//cleared
+	ID3D11SamplerState *SamplerState = nullptr;//Cleared
 
 
 	struct SEND_TO_VRAM
@@ -82,24 +115,18 @@ class DEMO_APP
 
 
 
-	XMMATRIX viewMatrix;
-	XMMATRIX projectionMatrix;
-	XMMATRIX WorldMatrixObject;
-
-
-	ID3D11Texture2D *DepthBuffer = nullptr;//cleared
-	ID3D11Texture2D *TextureBuffer = nullptr;//cleared
-	ID3D11DepthStencilView *DepthStencilView = nullptr;//cleared
-
 	//Camera
 	float MoveCameraZ = -1.0f;
 	float MoveCameraY = 0.0f;
 	float MoveCameraX = 0.0f;
 	POINT currPos, PrevPos;
 
+#pragma region Objects
+	Create_D3Object Cube_Object;
+	Create_D3Object Star_Object;
+
+#pragma endregion
 public:
-	// BEGIN PART 2
-	// TODO: PART 2 STEP 1
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
@@ -111,47 +138,78 @@ void DEMO_APP::MoveCamera(float MoveSpeed)
 {
 	//camera
 
-
+	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
 	//Get input from user for Z axis
 	if (GetAsyncKeyState(0x57) && 0x1)
 	{
 
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, 0.0001f * MoveSpeed);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
 	}
 	if (GetAsyncKeyState(0x53) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, -0.0001f* MoveSpeed);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
 	}
 	//Get input from user for X axis
 	if (GetAsyncKeyState(0x41) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(-0.0001f* MoveSpeed, 0.0f, 0.0f);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x44) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0001f* MoveSpeed, 0.0f, 0.0f);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
 
 	}
 	//Get input from user for Y axis
 	if (GetAsyncKeyState(0x51) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, -0.0001f* MoveSpeed, 0.0f);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x45) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0001f* MoveSpeed, 0.0f);
-		viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+	}
+
+	//Translation & Rotation
+	if (GetAsyncKeyState(VK_RBUTTON))
+	{
+	//	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
+		float Dx = (FLOAT)(currPos.x - PrevPos.x);
+		float Dy = (FLOAT)(currPos.y - PrevPos.y);
+
+		XMMATRIX x_rot = XMMatrixIdentity();
+		XMMATRIX y_rot = XMMatrixIdentity();
+		y_rot = XMMatrixRotationY(Dx * (FLOAT)(TotalTimeLoop.Delta()) * 10);
+		x_rot = XMMatrixRotationX(Dy * (FLOAT)(TotalTimeLoop.Delta()) * 10);
+
+		XMVECTOR SavePositon = { SV_ViewMatrix.r[3].m128_f32[0], SV_ViewMatrix.r[3].m128_f32[1], SV_ViewMatrix.r[3].m128_f32[2] };
+
+		//XMMATRIX tempMatrix;
+		//	tempMatrix.r[3].m128_f32[0];  // x of the 4th row //
+
+		SV_ViewMatrix.r[3].m128_f32[0] = 0; //x
+		SV_ViewMatrix.r[3].m128_f32[1] = 0; //y
+		SV_ViewMatrix.r[3].m128_f32[2] = 0; //z
+
+		SV_ViewMatrix = XMMatrixMultiply(x_rot, SV_ViewMatrix);
+		SV_ViewMatrix = XMMatrixMultiply(SV_ViewMatrix, y_rot);
+
+		SV_ViewMatrix.r[3].m128_f32[0] = SavePositon.m128_f32[0];
+		SV_ViewMatrix.r[3].m128_f32[1] = SavePositon.m128_f32[1];
+		SV_ViewMatrix.r[3].m128_f32[2] = SavePositon.m128_f32[2];
+
+		//SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
 	}
 
 
-
+	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
 }
 
 
@@ -161,6 +219,7 @@ void DEMO_APP::MoveCamera(float MoveSpeed)
 
 DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
+#pragma region WINDOWS CODE
 	// ****************** BEGIN WARNING ***********************// 
 	// WINDOWS CODE, I DON'T TEACH THIS YOU MUST KNOW IT ALREADY! 
 	application = hinst;
@@ -186,6 +245,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	ShowWindow(window, SW_SHOW);
 	//********************* END WARNING ************************//
+#pragma endregion
 
 #pragma region SwapChain and ViewPort
 
@@ -226,9 +286,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	hr = I_Device->CreateRenderTargetView(My_Texture2D, NULL, &I_RenderTargetView);
 	My_Texture2D->Release();
 
+	XMVECTOR CameraPOS = { 0.0f, 0.0f, -1.0f };
+	XMVECTOR CameraPOSLookdirection = { 0.0f, 0.0f, 0.0f };
+	XMVECTOR CameraPOSUP = { 0.0f, 1.0f, 0.0f };
+	SV_ViewMatrix = XMMatrixLookAtLH(CameraPOS, CameraPOSLookdirection, CameraPOSUP);
+
 #pragma endregion
 
-#pragma region Cube
+#pragma region Create and Set Tron Cube
+
+#pragma region Create Cube(tron)
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC CubeBufferDesc;
 	CubeBufferDesc.ByteWidth = sizeof(Cube_data);
@@ -266,7 +333,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	hr = I_Device->CreateBuffer(&CubeIndexBufferDesc, &CubeIndexSubResourceData, &Cube_Object.IndexBuffer);
 
-	//depth buffer desc
+
 	D3D11_TEXTURE2D_DESC Texture2DDesc;
 	Texture2DDesc.Width = Tron_width;
 	Texture2DDesc.Height = Tron_height;
@@ -291,7 +358,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	hr = I_Device->CreateTexture2D(&Texture2DDesc, Tron_Cube, &Cube_Object.Texture2DBuffer);
 
-	//ID3D11ShaderResourceView // Ask Jon
+	//ID3D11ShaderResourceView // ask about null. // samplerstate?
+
+
+
 	I_Device->CreateShaderResourceView(Cube_Object.Texture2DBuffer, NULL, &Cube_Object.ShaderResourceView);
 
 #pragma endregion
@@ -308,9 +378,166 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreateInputLayout(Cube_Layout, 3, Transform_VS, sizeof(Transform_VS), &Cube_Object.InputLayout);
 
 	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Cube_Object.VertexShader);
-	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Cube_Object.PixelShader);
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Cube_Object.PixelShader[0]);
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Cube_Object.PixelShader[1]);
 
 
+
+#pragma endregion
+
+#pragma endregion
+
+#pragma region Create and Set Star
+#pragma region Create Star
+	VERTEX4 geometry[12];
+	for (int i = 1; i < 11; i++)
+	{
+		if (i == 1 || i == 3 || i == 5 || i == 7 || i == 9)
+		{
+			geometry[i].xyzw[0] = sin(Degrees_To_Radians(i * 36.0f)) * .5f;
+			geometry[i].xyzw[1] = cos(Degrees_To_Radians(i * 36.0f)) * .5f;
+			geometry[i].RGBA[0] = 1.0f;
+			geometry[i].RGBA[1] = 0.0f;
+			geometry[i].RGBA[2] = 0.0f;
+		}
+		else
+		{
+			geometry[i].xyzw[0] = sin(Degrees_To_Radians(i * 36.0f));
+			geometry[i].xyzw[1] = cos(Degrees_To_Radians(i * 36.0f));
+			geometry[i].RGBA[0] = 0.0f;
+			geometry[i].RGBA[1] = 1.0f;
+			geometry[i].RGBA[2] = 1.0f;
+		}
+		geometry[i].xyzw[2] = 0.0f;
+	}
+	geometry[0].xyzw[0] = 0;
+	geometry[0].xyzw[1] = 0;
+	geometry[0].xyzw[2] = -.5f;
+	geometry[0].RGBA[0] = 0.0f;
+	geometry[0].RGBA[1] = 1.0f;
+	geometry[0].RGBA[2] = 0.0f;
+
+
+
+	geometry[11].xyzw[0] = 0;
+	geometry[11].xyzw[1] = 0;
+	geometry[11].xyzw[2] = .5f;
+	geometry[11].RGBA[0] = 0.0f;
+	geometry[11].RGBA[1] = 1.0f;
+	geometry[11].RGBA[2] = 0.0f;
+
+
+	UINT Index_Buffer[60] = { 0, 1, 2,
+		0, 2, 3,
+		0, 3, 4,
+		0, 4, 5,
+		0, 5, 6,
+		0, 6, 7,
+		0, 7, 8,
+		0, 8, 9,
+		0, 9, 10,
+		0, 10, 1,
+		11, 1, 10,
+		11, 10, 9,
+		11, 9, 8,
+		11, 8, 7,
+		11, 7, 6,
+		11, 6, 5,
+		11, 5, 4,
+		11, 4, 3,
+		11, 3, 2,
+		11, 2, 1 };
+
+	for (size_t i = 0; i < 12; i++)
+	{
+		geometry[i].nrm[0] = 0;
+		geometry[i].nrm[1] = 0;
+		geometry[i].nrm[2] = 0;
+	}
+
+
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC StarDesc;
+	StarDesc.ByteWidth = sizeof(geometry);
+	StarDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	StarDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	StarDesc.CPUAccessFlags = NULL;
+	StarDesc.MiscFlags = 0;
+	StarDesc.StructureByteStride = 0;
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Star_SubresourceData;
+	Star_SubresourceData.pSysMem = geometry;
+	Star_SubresourceData.SysMemPitch = 0;
+	Star_SubresourceData.SysMemSlicePitch = 0;
+
+	unsigned int NumberOfVerts = 12;
+	
+	hr = I_Device->CreateBuffer(&StarDesc, &Star_SubresourceData, &Star_Object.ConstantBuffer);
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC StarIndexBufferDesc;
+	StarIndexBufferDesc.ByteWidth = sizeof(Index_Buffer);
+	StarIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	StarIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	StarIndexBufferDesc.CPUAccessFlags = NULL;
+	StarIndexBufferDesc.MiscFlags = 0;
+	StarIndexBufferDesc.StructureByteStride = 0;
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Star_Index_Subresource_data;
+	Star_Index_Subresource_data.pSysMem = Index_Buffer;
+	Star_Index_Subresource_data.SysMemPitch = 0;
+	Star_Index_Subresource_data.SysMemSlicePitch = 0;
+
+	unsigned int NumOIndexVerts = 11;
+
+	hr = I_Device->CreateBuffer(&StarIndexBufferDesc, &Star_Index_Subresource_data, &Star_Object.IndexBuffer);
+
+
+#pragma endregion
+
+#pragma region Vertex/Pixel shader and layout
+
+	D3D11_INPUT_ELEMENT_DESC Star_Layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Star_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Star_Object.PixelShader[0]);
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Star_Object.PixelShader[1]);
+
+
+	I_Device->CreateInputLayout(Star_Layout, 3, Transform_VS, sizeof(Transform_VS), &Star_Object.InputLayout);
+#pragma endregion
+
+#pragma endregion
+
+#pragma region Sampler and Blend State;
+
+	D3D11_BLEND_DESC BlendDesc;
+	ZeroMemory(&BlendDesc, sizeof(BlendDesc));
+	BlendDesc.AlphaToCoverageEnable = false;
+	BlendDesc.IndependentBlendEnable = true;
+	BlendDesc.RenderTarget[0].BlendEnable = true;
+	BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
+	BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_DEST_COLOR;
+	BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_MAX;
+	BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+	I_Device->CreateBlendState(&BlendDesc, &BlendState);
+
+	D3D11_SAMPLER_DESC SamplerDesc =  CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
+
+	I_Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 
 #pragma endregion
 
@@ -338,7 +565,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// Depth test parameters
 	dsDesc.DepthEnable = true;
 	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 
 	// Stencil test parameters
 	dsDesc.StencilEnable = true;
@@ -407,22 +634,60 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-#pragma region Scene Constant Buffer
+#pragma region Scene Constant Buffer and Ambient Light
 	//Scene
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC SceneConstantBufferDesc;
 
-	SceneConstantBufferDesc.ByteWidth = sizeof(XMMATRIX);
+	SceneConstantBufferDesc.ByteWidth = sizeof(CONSTANTSCENE);
 	SceneConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	SceneConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	SceneConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	SceneConstantBufferDesc.MiscFlags = 0;
 	SceneConstantBufferDesc.StructureByteStride = 0;
 
-
 	hr = I_Device->CreateBuffer(&SceneConstantBufferDesc, nullptr, &SceneConstantBuffer);
 
+
+	D3D11_BUFFER_DESC AmbientLightConstantBufferDesc;
+
+	AmbientLightConstantBufferDesc.ByteWidth = sizeof(XMFLOAT4);
+	AmbientLightConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	AmbientLightConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	AmbientLightConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	AmbientLightConstantBufferDesc.MiscFlags = 0;
+	AmbientLightConstantBufferDesc.StructureByteStride = 0;
+
+
+	hr = I_Device->CreateBuffer(&AmbientLightConstantBufferDesc, nullptr, &AmbientLightBuffer);
+
+	D3D11_BUFFER_DESC DLightDesc;
+	DLightDesc.ByteWidth = sizeof(DLIGHT);
+	DLightDesc.Usage = D3D11_USAGE_DYNAMIC;
+	DLightDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	DLightDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	DLightDesc.MiscFlags = 0;
+	DLightDesc.StructureByteStride = 0;
+
+	hr = I_Device->CreateBuffer(&DLightDesc, nullptr, &DirectionalLightBuffer);
+
+	Dlight.Col.x = 0.4f;
+	Dlight.Col.y = 0.7f;
+	Dlight.Col.z = 0.2f;
+	Dlight.Col.w = 1.0f;
+
+	Dlight.Direction.x = 0.0f;
+	Dlight.Direction.y = -1.0f;
+	Dlight.Direction.z = 1.0f;
+	Dlight.Direction.w = 0.0f;
+
+	XMVECTOR DVect = XMLoadFloat4(&Dlight.Direction);
+	XMVector3Normalize(DVect);
+	XMStoreFloat4(&Dlight.Direction, DVect);
+
 #pragma endregion
+
+
 
 	TotalTimeLoop.Restart();
 
@@ -439,38 +704,10 @@ bool DEMO_APP::Run()
 	TotalTimeLoop.Signal();
 
 #pragma region Camera Movement
+
 	GetCursorPos(&currPos);
-	MoveCamera(10);
-	//Translation & Rotation
-	if (GetAsyncKeyState(VK_RBUTTON))
-	{
-		float Dx = (FLOAT)(currPos.x - PrevPos.x);
-		float Dy = (FLOAT)(currPos.y - PrevPos.y);
-
-		XMMATRIX x_rot = XMMatrixIdentity();
-		XMMATRIX y_rot = XMMatrixIdentity();
-		y_rot = XMMatrixRotationY(Dx * (FLOAT)(TotalTimeLoop.Delta()) * 10);
-		x_rot = XMMatrixRotationX(Dy * (FLOAT)(TotalTimeLoop.Delta()) * 10);
-
-		XMVECTOR SavePositon = { SV_ViewMatrix.r[3].m128_f32[0], SV_ViewMatrix.r[3].m128_f32[1], SV_ViewMatrix.r[3].m128_f32[2] };
-
-		//XMMATRIX tempMatrix;
-		//	tempMatrix.r[3].m128_f32[0];  // x of the 4th row // position row
-
-		SV_ViewMatrix.r[3].m128_f32[0] = 0; //x
-		SV_ViewMatrix.r[3].m128_f32[1] = 0; //y
-		SV_ViewMatrix.r[3].m128_f32[2] = 0; //z
-
-		SV_ViewMatrix = XMMatrixMultiply(x_rot, SV_ViewMatrix);
-		SV_ViewMatrix = XMMatrixMultiply(SV_ViewMatrix, y_rot);
-
-		SV_ViewMatrix.r[3].m128_f32[0] = SavePositon.m128_f32[0];
-		SV_ViewMatrix.r[3].m128_f32[1] = SavePositon.m128_f32[1];
-		SV_ViewMatrix.r[3].m128_f32[2] = SavePositon.m128_f32[2];
-	}
-
-	viewMatrix = SV_ViewMatrix;
-	viewMatrix = XMMatrixInverse(nullptr,viewMatrix);//inverse
+	MoveCamera(30);
+	ConstantScene.viewMatrix = SV_ViewMatrix;
 	SV_Projection = XMMatrixIdentity();
 
 	FLOAT ZNear = 0.1f;
@@ -480,20 +717,15 @@ bool DEMO_APP::Run()
 	FLOAT Yscale = FLOAT(1 / tan(FOV * 0.5f));
 	FLOAT Xscale = Yscale * AspectRatio;
 
-	XMMATRIX PerspectiveProjection = {
-		Xscale, 0, 0, 0,
-		0, Yscale, 0, 0,
-		0, 0, (ZFar / (ZFar - ZNear)), 1,
-		0, 0, (-(ZFar * ZNear) / (ZFar - ZNear)), 0,
-	};
+	XMMATRIX PerspectiveProjection = XMMatrixPerspectiveFovLH(FOV, AspectRatio, ZNear, ZFar);
 
-	projectionMatrix = SV_Projection = PerspectiveProjection;
+	
+
+	ConstantScene.projectionMatrix = SV_Projection = PerspectiveProjection;
 	
 	PrevPos = currPos;
 
 #pragma endregion
-
-
 
 #pragma region ViewPorts
 	//How to change view ports.
@@ -508,65 +740,171 @@ bool DEMO_APP::Run()
 	I_Context->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 #pragma endregion
 
-#pragma region Cube Draw New
+#pragma region Ambient Light
 
-	Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(2.0f, 2.0f, 1.0f)));
-
-	WorldMatrixObject = Cube_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Cube_Object.WorldMatrix);
-
-	// Set vertex buffer
-	UINT stride = sizeof(_OBJ_VERT_);
-	UINT offset = 0;
-	I_Context->IASetVertexBuffers(0, 1, &Cube_Object.ConstantBuffer, &stride, &offset);
-
-	I_Context->IASetIndexBuffer(Cube_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, offset);
-
-	I_Context->VSSetShader(Cube_Object.VertexShader, NULL, 0);
-
-	I_Context->PSSetShader(Cube_Object.PixelShader, NULL, 0);
-
-	I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
-
-	I_Context->IASetInputLayout(Cube_Object.InputLayout);
+	XMFLOAT4 LightColor;
+	ZeroMemory(&LightColor, sizeof(XMFLOAT4));
+	if (GetKeyState(VK_F3) & 0x1)
+	{
+		LightColor.x = 0.4f;
+		LightColor.y = 0.4f;
+		LightColor.z = 0.4f;
+		LightColor.w = 0.4f;
+	}
+#pragma endregion
 
 
-	I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	for (size_t i = 0; i < 2; i++)
+	{
+
+#pragma region Draw Tron Cube
+
+		Cube_Object.SetWorldMatrix(XMMatrixIdentity());
+
+		Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 1.0f)));
+
+		WorldMatrixObject = Cube_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Cube_Object.WorldMatrix);
+
+		// Set vertex buffer
+		UINT stride = sizeof(_OBJ_VERT_);
+		UINT offset = 0;
+		I_Context->IASetVertexBuffers(0, 1, &Cube_Object.ConstantBuffer, &stride, &offset);
+
+		I_Context->IASetIndexBuffer(Cube_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, offset);
+
+		I_Context->VSSetShader(Cube_Object.VertexShader, NULL, 0);
+
+		I_Context->PSSetShader(Cube_Object.PixelShader[i], NULL, 0);
+
+		switch (i)
+		{
+		case 0:
+			I_Context->PSSetConstantBuffers(0, 1, &AmbientLightBuffer);
+			I_Context->OMSetBlendState(BlendStateNULL, nullptr, 0xffffffff);
+			break;
+		case 1:
+			I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer); 
+			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
+			break;
+
+		}
+		
+		I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
+
+		I_Context->IASetInputLayout(Cube_Object.InputLayout);
+
+
+		I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
 
-	//mapping local to constantbuffer
-	D3D11_MAPPED_SUBRESOURCE Local;
-	I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+		//mapping local to constantbuffer
+		D3D11_MAPPED_SUBRESOURCE Local;
+		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-	memcpy(Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+		memcpy(Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
 
-	I_Context->Unmap(ConstantBuffer, 0);
-
-
-	//World Constant buffer mapping
-	I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-	memcpy(Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
-
-	I_Context->Unmap(WorldConstantBuffer, 0);
+		I_Context->Unmap(ConstantBuffer, 0);
 
 
-	//Scene Constant buffer mapping
-	I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+		//World Constant buffer mapping
+		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-	memcpy(Local.pData, &SceneConstantBuffer, sizeof(XMMATRIX));
+		memcpy(Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
 
-	I_Context->Unmap(SceneConstantBuffer, 0);
+		I_Context->Unmap(WorldConstantBuffer, 0);
 
 
+		//Scene Constant buffer mapping
+		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-	I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
-	I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+		memcpy(Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
 
-	I_Context->DrawIndexed(1692, 0, 0);// drawing cube
+		I_Context->Unmap(SceneConstantBuffer, 0);
+
+		//Map ALight
+		I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+		memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
+
+		I_Context->Unmap(AmbientLightBuffer, 0);
+
+		//Map DLight
+		I_Context->Map(DirectionalLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+		memcpy(Local.pData, &Dlight, sizeof(DLIGHT));
+
+		I_Context->Unmap(DirectionalLightBuffer, 0);
+
+		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+
+		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+		I_Context->PSSetSamplers(0, 1, &SamplerState);
+
+		I_Context->DrawIndexed(1692, 0, 0);// drawing cube
 
 #pragma endregion
-	
+
+#pragma region Draw Star
+
+		Star_Object.SetWorldMatrix(XMMatrixIdentity());
+
+		Star_Object.SetWorldMatrix(XMMatrixMultiply(Star_Object.WorldMatrix, XMMatrixTranslation(2.0f, 2.0f, 1.0f)));
+
+		WorldMatrixObject = Star_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Star_Object.WorldMatrix);
+
+		// Set vertex buffer
+		UINT Star_stride = sizeof(VERTEX4);
+		UINT Star_offset = 0;
+		I_Context->IASetVertexBuffers(0, 1, &Star_Object.ConstantBuffer, &Star_stride, &Star_offset);
+
+		I_Context->IASetIndexBuffer(Star_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Star_offset);
+
+		I_Context->VSSetShader(Star_Object.VertexShader, NULL, 0);
+
+		I_Context->PSSetShader(Star_Object.PixelShader[i], NULL, 0);
+
+		I_Context->IASetInputLayout(Star_Object.InputLayout);
+
+		I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		Star_Object.ShaderResourceView = nullptr;
+
+		I_Context->PSSetShaderResources(0, 1, &Star_Object.ShaderResourceView);
+
+
+		//mapping local to constantbuffer
+		D3D11_MAPPED_SUBRESOURCE Star_Local;
+		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+
+		memcpy(Star_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+		I_Context->Unmap(ConstantBuffer, 0);
+
+		//World Constant buffer mapping
+		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+
+		memcpy(Star_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+		I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+		//Scene Constant buffer mapping
+		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+
+		memcpy(Star_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+		I_Context->Unmap(SceneConstantBuffer, 0);
+
+
+
+		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+		I_Context->DrawIndexed(60, 0, 0);
+#pragma endregion
+	}
 
 	I_SwapChain->Present(0, 0);
 	return true;
@@ -589,6 +927,11 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(WorldConstantBuffer);//cleared
 	SAFE_RELEASE(TextureBuffer);//cleared
 	SAFE_RELEASE(DepthBuffer);//cleared
+	SAFE_RELEASE(AmbientLightBuffer);//Cleared
+	SAFE_RELEASE(BlendState);//Cleared
+	SAFE_RELEASE(SamplerState);//Cleared
+	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
+
 
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
