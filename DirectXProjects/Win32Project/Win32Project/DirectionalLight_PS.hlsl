@@ -35,6 +35,5 @@ float4 main(V_IN Input) : SV_TARGET
 	float LIGHTRATIO = saturate(dot(-(float3(Dir.x, Dir.y, Dir.z)), Input.Nrm));
 	float4 RESULT = LIGHTRATIO * Col * color;
 
-
 	return RESULT; // return a transition based on the detail alpha
 }

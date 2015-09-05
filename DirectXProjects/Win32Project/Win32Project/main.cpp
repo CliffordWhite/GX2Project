@@ -103,7 +103,7 @@ class DEMO_APP
 	ID3D11BlendState *BlendState = nullptr;//cleared
 	ID3D11BlendState *BlendStateNULL = nullptr;//cleared
 	ID3D11SamplerState *SamplerState = nullptr;//Cleared
-
+	ID3D11DepthStencilState *pDSState = nullptr;//cleared
 
 	struct SEND_TO_VRAM
 	{
@@ -124,6 +124,7 @@ class DEMO_APP
 #pragma region Objects
 	Create_D3Object Cube_Object;
 	Create_D3Object Star_Object;
+	Create_D3Object Model_Object;
 
 #pragma endregion
 public:
@@ -378,6 +379,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreateInputLayout(Cube_Layout, 3, Transform_VS, sizeof(Transform_VS), &Cube_Object.InputLayout);
 
 	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Cube_Object.VertexShader);
+
 	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Cube_Object.PixelShader[0]);
 
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Cube_Object.PixelShader[1]);
@@ -511,6 +513,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Star_Object.VertexShader);
 
 	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Star_Object.PixelShader[0]);
+
+
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Star_Object.PixelShader[1]);
 
 
@@ -519,20 +523,82 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
+#pragma region Create and Set Model(Loaded)
+#pragma region Create Model
+	vector<XMFLOAT3> Model_Vertices;
+	vector<XMFLOAT2> Model_UVS;
+	vector<XMFLOAT3> Model_Normals;
+	Model_Object.loadOBJ("tri.obj", Model_Vertices, Model_UVS, Model_Normals);
+	SIMPLE_VERTEX Model_Pyramid[36];
+	for (size_t i = 0; i < 36; i++)
+	{
+		Model_Pyramid[i].Verts.x = Model_Vertices[i].x;
+		Model_Pyramid[i].Verts.y = Model_Vertices[i].y;
+		Model_Pyramid[i].Verts.z = Model_Vertices[i].z;
+		Model_Pyramid[i].UV.x = Model_UVS[i].x;
+		Model_Pyramid[i].UV.y = Model_UVS[i].y;
+		Model_Pyramid[i].NRM.x = Model_Normals[i].x;
+		Model_Pyramid[i].NRM.y = Model_Normals[i].y;
+		Model_Pyramid[i].NRM.z = Model_Normals[i].z;
+	}
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC ModelDesc;
+	ModelDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 36;
+	ModelDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	ModelDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	ModelDesc.CPUAccessFlags = NULL;
+	ModelDesc.MiscFlags = 0;
+	ModelDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Model_SubresourceData;
+	Model_SubresourceData.pSysMem = Model_Pyramid;
+	Model_SubresourceData.SysMemPitch = 0;
+	Model_SubresourceData.SysMemSlicePitch = 0;
+
+
+	hr = I_Device->CreateBuffer(&ModelDesc, &Model_SubresourceData, &Model_Object.ConstantBuffer);
+
+	
+
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+	D3D11_INPUT_ELEMENT_DESC Model_Layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Model_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Model_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Model_Object.PixelShader[1]);
+
+
+	I_Device->CreateInputLayout(Model_Layout, 3, Transform_VS, sizeof(Transform_VS), &Model_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
 #pragma region Sampler and Blend State;
 
 	D3D11_BLEND_DESC BlendDesc;
-	ZeroMemory(&BlendDesc, sizeof(BlendDesc));
-	BlendDesc.AlphaToCoverageEnable = false;
-	BlendDesc.IndependentBlendEnable = true;
-	BlendDesc.RenderTarget[0].BlendEnable = true;
-	BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
-	BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_DEST_COLOR;
+	ZeroMemory(&BlendDesc, sizeof(D3D11_BLEND_DESC));
+	BlendDesc.RenderTarget[0].BlendEnable = TRUE;
+	BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
-	BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_MAX;
-	BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
+	
 	I_Device->CreateBlendState(&BlendDesc, &BlendState);
 
 	D3D11_SAMPLER_DESC SamplerDesc =  CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
@@ -540,7 +606,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 
 #pragma endregion
-
 
 #pragma region DepthBuffer
 	D3D11_TEXTURE2D_DESC deDepth;
@@ -585,11 +650,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	dsDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
 	// Create depth stencil state
-	ID3D11DepthStencilState *pDSState;
 
 	I_Device->CreateDepthStencilState(&dsDesc, &pDSState);
-
-	pDSState->Release();
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
 	ZeroMemory(&descDSV, sizeof(descDSV));
@@ -634,7 +696,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-#pragma region Scene Constant Buffer and Ambient Light
+#pragma region Scene Constant Buffer and Ambient/Directional Light
 	//Scene
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC SceneConstantBufferDesc;
@@ -671,11 +733,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	hr = I_Device->CreateBuffer(&DLightDesc, nullptr, &DirectionalLightBuffer);
 
-	Dlight.Col.x = 0.4f;
-	Dlight.Col.y = 0.7f;
-	Dlight.Col.z = 0.2f;
-	Dlight.Col.w = 1.0f;
 
+	//forward and looking down(should be looking at an angle)
 	Dlight.Direction.x = 0.0f;
 	Dlight.Direction.y = -1.0f;
 	Dlight.Direction.z = 1.0f;
@@ -686,8 +745,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	XMStoreFloat4(&Dlight.Direction, DVect);
 
 #pragma endregion
-
-
 
 	TotalTimeLoop.Restart();
 
@@ -753,9 +810,37 @@ bool DEMO_APP::Run()
 	}
 #pragma endregion
 
-
-	for (size_t i = 0; i < 2; i++)
+#pragma region Directional Light
+	ZeroMemory(&Dlight.Col, sizeof(XMFLOAT4));
+	if (GetKeyState(VK_F4) & 0x1)
 	{
+		Dlight.Col.x = 1.0f;
+		Dlight.Col.y = 0.7f;
+		Dlight.Col.z = 0.2f;
+		Dlight.Col.w = 1.0f;
+
+	}
+#pragma endregion
+
+	I_Context->OMSetDepthStencilState(pDSState,0); // set so I can do more then one draw call and have lights show.
+
+#pragma region For loop for drawing
+	
+	for (size_t i = 0; i < 2; i++) //for loop to loop through ambient and spot light.
+	{
+#pragma region Switch case for PixelShaders
+		switch (i)
+		{
+		case 0:
+			I_Context->PSSetConstantBuffers(0, 1, &AmbientLightBuffer);
+			I_Context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+			break;
+		case 1:
+			I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer);
+			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
+			break;
+		}
+#pragma endregion
 
 #pragma region Draw Tron Cube
 
@@ -776,19 +861,6 @@ bool DEMO_APP::Run()
 
 		I_Context->PSSetShader(Cube_Object.PixelShader[i], NULL, 0);
 
-		switch (i)
-		{
-		case 0:
-			I_Context->PSSetConstantBuffers(0, 1, &AmbientLightBuffer);
-			I_Context->OMSetBlendState(BlendStateNULL, nullptr, 0xffffffff);
-			break;
-		case 1:
-			I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer); 
-			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
-			break;
-
-		}
-		
 		I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
 
 		I_Context->IASetInputLayout(Cube_Object.InputLayout);
@@ -822,12 +894,7 @@ bool DEMO_APP::Run()
 
 		I_Context->Unmap(SceneConstantBuffer, 0);
 
-		//Map ALight
-		I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-		memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
-
-		I_Context->Unmap(AmbientLightBuffer, 0);
 
 		//Map DLight
 		I_Context->Map(DirectionalLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
@@ -835,6 +902,15 @@ bool DEMO_APP::Run()
 		memcpy(Local.pData, &Dlight, sizeof(DLIGHT));
 
 		I_Context->Unmap(DirectionalLightBuffer, 0);
+
+
+		//Map ALight
+		I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+		memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
+
+		I_Context->Unmap(AmbientLightBuffer, 0);
+
 
 		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 
@@ -862,7 +938,7 @@ bool DEMO_APP::Run()
 		I_Context->IASetIndexBuffer(Star_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Star_offset);
 
 		I_Context->VSSetShader(Star_Object.VertexShader, NULL, 0);
-
+		
 		I_Context->PSSetShader(Star_Object.PixelShader[i], NULL, 0);
 
 		I_Context->IASetInputLayout(Star_Object.InputLayout);
@@ -904,8 +980,61 @@ bool DEMO_APP::Run()
 
 		I_Context->DrawIndexed(60, 0, 0);
 #pragma endregion
-	}
 
+#pragma region Draw Model
+
+		Model_Object.SetWorldMatrix(XMMatrixIdentity());
+
+		Model_Object.SetWorldMatrix(XMMatrixMultiply(Model_Object.WorldMatrix, XMMatrixTranslation(-3.0f, 2.0f, 1.0f)));
+
+		WorldMatrixObject = Model_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Model_Object.WorldMatrix);
+
+		// Set vertex buffer
+		UINT Model_stride = sizeof(SIMPLE_VERTEX);
+		UINT Model_offset = 0;
+		I_Context->IASetVertexBuffers(0, 1, &Model_Object.ConstantBuffer, &Model_stride, &Model_offset);
+
+		//I_Context->IASetIndexBuffer(Model_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Model_offset);
+
+		I_Context->VSSetShader(Model_Object.VertexShader, NULL, 0);
+
+		I_Context->PSSetShader(Model_Object.PixelShader[0], NULL, 0);
+
+		I_Context->IASetInputLayout(Model_Object.InputLayout);
+		//mapping local to constantbuffer
+		D3D11_MAPPED_SUBRESOURCE Model_Local;
+		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+
+		memcpy(Model_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+		I_Context->Unmap(ConstantBuffer, 0);
+
+		//World Constant buffer mapping
+		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+
+		memcpy(Model_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+		I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+		//Scene Constant buffer mapping
+		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+
+		memcpy(Model_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+		I_Context->Unmap(SceneConstantBuffer, 0);
+
+		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+		I_Context->Draw(36, 0);
+
+
+#pragma endregion
+
+
+	}//end of for loop
+#pragma endregion
 	I_SwapChain->Present(0, 0);
 	return true;
 }
@@ -929,9 +1058,10 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(DepthBuffer);//cleared
 	SAFE_RELEASE(AmbientLightBuffer);//Cleared
 	SAFE_RELEASE(BlendState);//Cleared
+	SAFE_RELEASE(BlendStateNULL)//Cleared
 	SAFE_RELEASE(SamplerState);//Cleared
 	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
-
+	SAFE_RELEASE(pDSState);//Cleared
 
 	UnregisterClass(L"DirectXApplication", application);
 	return true;

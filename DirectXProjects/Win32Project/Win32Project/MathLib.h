@@ -38,10 +38,7 @@ struct VERTEX
 	float xyzwuv[6];
 	UINT Color;
 };
-struct SIMPLE_VERTEX
-{
-	float xy[2];
-};
+
 
 struct SIMPLE_VECTOR
 {
