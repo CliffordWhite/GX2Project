@@ -43,7 +43,7 @@ using namespace std;
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
 //************************************************************
-
+ 
 class DEMO_APP
 {
 	HINSTANCE						application;
@@ -1035,6 +1035,7 @@ bool DEMO_APP::Run()
 
 	}//end of for loop
 #pragma endregion
+
 	I_SwapChain->Present(0, 0);
 	return true;
 }
