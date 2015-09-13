@@ -64,8 +64,10 @@ class DEMO_APP
 	XTime TotalTimeLoop;
 
 	D3D11_VIEWPORT ViewPort;
+	D3D11_VIEWPORT ViewPort_2;
 
 	XMMATRIX SV_ViewMatrix;
+	XMMATRIX SV_ViewMatrix_2;
 	XMMATRIX SV_Projection;
 	
 
@@ -132,56 +134,56 @@ public:
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
-	void MoveCamera(float MoveSpeed);
+	void MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix);
 };
 
-void DEMO_APP::MoveCamera(float MoveSpeed)
+void DEMO_APP::MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix)
 {
 	//camera
 
-	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
+	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 	//Get input from user for Z axis
 	if (GetAsyncKeyState(0x57) && 0x1)
 	{
 
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, 0.0001f * MoveSpeed);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 	if (GetAsyncKeyState(0x53) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, -0.0001f* MoveSpeed);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 	//Get input from user for X axis
 	if (GetAsyncKeyState(0x41) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(-0.0001f* MoveSpeed, 0.0f, 0.0f);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x44) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0001f* MoveSpeed, 0.0f, 0.0f);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	//Get input from user for Y axis
 	if (GetAsyncKeyState(0x51) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, -0.0001f* MoveSpeed, 0.0f);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x45) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0001f* MoveSpeed, 0.0f);
-		ConstantScene.viewMatrix = SV_ViewMatrix = XMMatrixMultiply(trans, SV_ViewMatrix);
+		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 
 	//Translation & Rotation
 	if (GetAsyncKeyState(VK_RBUTTON))
 	{
-	//	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
+	//	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 		float Dx = (FLOAT)(currPos.x - PrevPos.x);
 		float Dy = (FLOAT)(currPos.y - PrevPos.y);
 
@@ -190,27 +192,27 @@ void DEMO_APP::MoveCamera(float MoveSpeed)
 		y_rot = XMMatrixRotationY(Dx * (FLOAT)(TotalTimeLoop.Delta()) * 10);
 		x_rot = XMMatrixRotationX(Dy * (FLOAT)(TotalTimeLoop.Delta()) * 10);
 
-		XMVECTOR SavePositon = { SV_ViewMatrix.r[3].m128_f32[0], SV_ViewMatrix.r[3].m128_f32[1], SV_ViewMatrix.r[3].m128_f32[2] };
+		XMVECTOR SavePositon = { ViewMatrix.r[3].m128_f32[0], ViewMatrix.r[3].m128_f32[1], ViewMatrix.r[3].m128_f32[2] };
 
 		//XMMATRIX tempMatrix;
 		//	tempMatrix.r[3].m128_f32[0];  // x of the 4th row //
 
-		SV_ViewMatrix.r[3].m128_f32[0] = 0; //x
-		SV_ViewMatrix.r[3].m128_f32[1] = 0; //y
-		SV_ViewMatrix.r[3].m128_f32[2] = 0; //z
+		ViewMatrix.r[3].m128_f32[0] = 0; //x
+		ViewMatrix.r[3].m128_f32[1] = 0; //y
+		ViewMatrix.r[3].m128_f32[2] = 0; //z
 
-		SV_ViewMatrix = XMMatrixMultiply(x_rot, SV_ViewMatrix);
-		SV_ViewMatrix = XMMatrixMultiply(SV_ViewMatrix, y_rot);
+		ViewMatrix = XMMatrixMultiply(x_rot, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, y_rot);
 
-		SV_ViewMatrix.r[3].m128_f32[0] = SavePositon.m128_f32[0];
-		SV_ViewMatrix.r[3].m128_f32[1] = SavePositon.m128_f32[1];
-		SV_ViewMatrix.r[3].m128_f32[2] = SavePositon.m128_f32[2];
+		ViewMatrix.r[3].m128_f32[0] = SavePositon.m128_f32[0];
+		ViewMatrix.r[3].m128_f32[1] = SavePositon.m128_f32[1];
+		ViewMatrix.r[3].m128_f32[2] = SavePositon.m128_f32[2];
 
-		//SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
+		//ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 	}
 
 
-	SV_ViewMatrix = XMMatrixInverse(nullptr, SV_ViewMatrix);
+	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 }
 
 
@@ -280,6 +282,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ViewPort.TopLeftY = 0;
 
 
+	ViewPort_2.MinDepth = 0;
+	ViewPort_2.MaxDepth = 1;
+	ViewPort_2.Height = (FLOAT)(des.BufferDesc.Width);
+	ViewPort_2.Width = (FLOAT)(des.BufferDesc.Height);
+	ViewPort_2.TopLeftX = 0;
+	ViewPort_2.TopLeftY = 0;
+
 	ID3D11Texture2D *My_Texture2D;
 
 	// TODO: PART 1 STEP 3b
@@ -291,6 +300,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	XMVECTOR CameraPOSLookdirection = { 0.0f, 0.0f, 0.0f };
 	XMVECTOR CameraPOSUP = { 0.0f, 1.0f, 0.0f };
 	SV_ViewMatrix = XMMatrixLookAtLH(CameraPOS, CameraPOSLookdirection, CameraPOSUP);
+	SV_ViewMatrix_2 = XMMatrixLookAtLH(CameraPOS, CameraPOSLookdirection, CameraPOSUP);
 
 #pragma endregion
 
@@ -763,8 +773,16 @@ bool DEMO_APP::Run()
 #pragma region Camera Movement
 
 	GetCursorPos(&currPos);
-	MoveCamera(30);
-	ConstantScene.viewMatrix = SV_ViewMatrix;
+	if (GetKeyState(VK_F6) & 0x1)
+	{
+		MoveCamera(30, SV_ViewMatrix);
+		ConstantScene.viewMatrix = SV_ViewMatrix;
+	}
+	else
+	{
+		MoveCamera(30, SV_ViewMatrix_2);
+		ConstantScene.viewMatrix = SV_ViewMatrix_2;
+	}
 	SV_Projection = XMMatrixIdentity();
 
 	FLOAT ZNear = 0.1f;
@@ -788,8 +806,10 @@ bool DEMO_APP::Run()
 	//How to change view ports.
 	I_Context->OMSetRenderTargets(1, &I_RenderTargetView, DepthStencilView);
 
+	if (GetKeyState(VK_F6) & 0x1)
 	I_Context->RSSetViewports(1, &ViewPort);
-
+	else
+		I_Context->RSSetViewports(1, &ViewPort_2);
 
 	float ColorRGBA[4] = { 0, 0, 1, 1 };
 	
@@ -819,6 +839,11 @@ bool DEMO_APP::Run()
 		Dlight.Col.z = 0.2f;
 		Dlight.Col.w = 1.0f;
 
+	}
+	if (GetKeyState(VK_F5) & 0x8000)
+	{
+		Dlight.Direction.y = -1.0f * (Dlight.Direction.y);
+		Dlight.Direction.z = -1.0f * (Dlight.Direction.y);
 	}
 #pragma endregion
 
