@@ -127,6 +127,7 @@ class DEMO_APP
 	Create_D3Object Cube_Object;
 	Create_D3Object Star_Object;
 	Create_D3Object Model_Object;
+	Create_D3Object Plane_Object;
 
 #pragma endregion
 public:
@@ -595,6 +596,68 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion
 #pragma endregion
 
+#pragma region Create and Set Plane
+#pragma region Create Plane
+	vector<XMFLOAT3> Plane_Vertices;
+	vector<XMFLOAT2> Plane_UVS;
+	vector<XMFLOAT3> Plane_Normals;
+	Plane_Object.loadOBJ("Plane.obj", Plane_Vertices, Plane_UVS, Plane_Normals);
+	SIMPLE_VERTEX Plane_Pyramid[12];
+	for (size_t i = 0; i < 12; i++)
+	{
+		Plane_Pyramid[i].Verts.x = Plane_Vertices[i].x;
+		Plane_Pyramid[i].Verts.y = Plane_Vertices[i].y;
+		Plane_Pyramid[i].Verts.z = Plane_Vertices[i].z;
+		Plane_Pyramid[i].UV.x = Plane_UVS[i].x;
+		Plane_Pyramid[i].UV.y = Plane_UVS[i].y;
+		Plane_Pyramid[i].NRM.x = Plane_Normals[i].x;
+		Plane_Pyramid[i].NRM.y = Plane_Normals[i].y;
+		Plane_Pyramid[i].NRM.z = Plane_Normals[i].z;
+	}
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC PlaneDesc;
+	PlaneDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 12;
+	PlaneDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	PlaneDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	PlaneDesc.CPUAccessFlags = NULL;
+	PlaneDesc.MiscFlags = 0;
+	PlaneDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Plane_SubresourceData;
+	Plane_SubresourceData.pSysMem = Plane_Pyramid;
+	Plane_SubresourceData.SysMemPitch = 0;
+	Plane_SubresourceData.SysMemSlicePitch = 0;
+
+
+	hr = I_Device->CreateBuffer(&PlaneDesc, &Plane_SubresourceData, &Plane_Object.ConstantBuffer);
+
+
+
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+	D3D11_INPUT_ELEMENT_DESC Plane_Layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Plane_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Plane_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Plane_Object.PixelShader[1]);
+
+
+	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &Plane_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
 #pragma region Sampler and Blend State;
 
 	D3D11_BLEND_DESC BlendDesc;
@@ -1056,6 +1119,58 @@ bool DEMO_APP::Run()
 
 
 #pragma endregion
+
+#pragma region Draw Plane
+
+		Plane_Object.SetWorldMatrix(XMMatrixIdentity());
+
+		Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, -1.0f, 0.0f)));
+
+		WorldMatrixObject = Plane_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Plane_Object.WorldMatrix);
+
+		// Set vertex buffer
+		UINT Plane_stride = sizeof(SIMPLE_VERTEX);
+		UINT Plane_offset = 0;
+		I_Context->IASetVertexBuffers(0, 1, &Plane_Object.ConstantBuffer, &Plane_stride, &Plane_offset);
+
+		//I_Context->IASetIndexBuffer(Plane_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Plane_offset);
+
+		I_Context->VSSetShader(Plane_Object.VertexShader, NULL, 0);
+
+		I_Context->PSSetShader(Plane_Object.PixelShader[0], NULL, 0);
+
+		I_Context->IASetInputLayout(Plane_Object.InputLayout);
+		//mapping local to constantbuffer
+		D3D11_MAPPED_SUBRESOURCE Plane_Local;
+		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+
+		memcpy(Plane_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+		I_Context->Unmap(ConstantBuffer, 0);
+
+		//World Constant buffer mapping
+		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+
+		memcpy(Plane_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+		I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+		//Scene Constant buffer mapping
+		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+
+		memcpy(Plane_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+		I_Context->Unmap(SceneConstantBuffer, 0);
+
+		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+		I_Context->Draw(12, 0);
+
+
+#pragma endregion
+
 
 
 	}//end of for loop
