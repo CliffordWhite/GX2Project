@@ -32,7 +32,7 @@ public:
 	XMMATRIX WorldMatrix; // ZeroMemory called in Constructor;
 
 	ID3D11VertexShader *VertexShader = nullptr;
-	ID3D11PixelShader *PixelShader[2];
+	ID3D11PixelShader *PixelShader[3];
 	ID3D11InputLayout *InputLayout = nullptr;
 
 	//could be more then one(consider array)
@@ -101,6 +101,9 @@ Create_D3Object::~Create_D3Object()
 
 	SAFE_RELEASE(PixelShader[1]);
 	SAFE_DELETE(PixelShader[1]);
+
+	SAFE_RELEASE(PixelShader[2]);
+	SAFE_DELETE(PixelShader[2]);
 
 	SAFE_RELEASE(InputLayout);
 	SAFE_DELETE(InputLayout);

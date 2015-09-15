@@ -8,6 +8,10 @@ struct V_IN
 	float4 posH : SV_POSITION;
 	float4 ColH : COLOR;
 	float3 NrmH : NORMAL;
+	float3 World : WORLD;
+	float3 View : VIEW;
+
+
 };
 
 cbuffer AmbientLight:register(b0)
@@ -31,7 +35,6 @@ float4 main(V_IN Input) : SV_TARGET
 		color.g = baseColor.r;
 		color.b = baseColor.a;
 	}
-
 
 	return color * A_Light; // return a transition based on the detail alpha
 }

@@ -22,6 +22,7 @@
 #include "Transform_VS.csh"
 #include "Transform_PS.csh"
 #include "DirectionalLight_PS.csh"
+#include "SpotLight.csh"
 #include "Cube.h"
 #include "Tron.h"
 
@@ -92,6 +93,9 @@ class DEMO_APP
 
 	ID3D11Buffer *DirectionalLightBuffer = nullptr;//Cleared
 
+	ID3D11Buffer *SpotLightBuffer = nullptr;//Cleared
+
+
 	struct DLIGHT
 	{
 		XMFLOAT4 Col;
@@ -100,8 +104,18 @@ class DEMO_APP
 
 	DLIGHT Dlight;
 
+	struct SLIGHT
+	{
+		XMFLOAT4 Col;
+		XMFLOAT3 Dir;
+		float MotherOfOne;//padding
+		XMFLOAT4 Pos;
+		float Cratio;
+		XMFLOAT3 MotherOfThree;//padding
+	};
 
-	
+	SLIGHT SLight;
+
 	ID3D11BlendState *BlendState = nullptr;//cleared
 	ID3D11BlendState *BlendStateNULL = nullptr;//cleared
 	ID3D11SamplerState *SamplerState = nullptr;//Cleared
@@ -372,8 +386,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	//ID3D11ShaderResourceView // ask about null. // samplerstate?
 
-
-
 	I_Device->CreateShaderResourceView(Cube_Object.Texture2DBuffer, NULL, &Cube_Object.ShaderResourceView);
 
 #pragma endregion
@@ -394,6 +406,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Cube_Object.PixelShader[0]);
 
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Cube_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Cube_Object.PixelShader[2]);
+
 
 
 
@@ -527,6 +542,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Star_Object.PixelShader[1]);
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Star_Object.PixelShader[2]);
+
 
 
 	I_Device->CreateInputLayout(Star_Layout, 3, Transform_VS, sizeof(Transform_VS), &Star_Object.InputLayout);
@@ -590,6 +607,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Model_Object.PixelShader[1]);
 
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Model_Object.PixelShader[2]);
+
 
 	I_Device->CreateInputLayout(Model_Layout, 3, Transform_VS, sizeof(Transform_VS), &Model_Object.InputLayout);
 
@@ -651,6 +670,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Plane_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Plane_Object.PixelShader[2]);
+
 
 
 	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &Plane_Object.InputLayout);
@@ -817,6 +839,37 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	XMVector3Normalize(DVect);
 	XMStoreFloat4(&Dlight.Direction, DVect);
 
+	//SpotLight
+	D3D11_BUFFER_DESC SLightDesc;
+	SLightDesc.ByteWidth = sizeof(SLIGHT);
+	SLightDesc.Usage = D3D11_USAGE_DYNAMIC;
+	SLightDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	SLightDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	SLightDesc.MiscFlags = 0;
+	SLightDesc.StructureByteStride = 0;
+
+	hr = I_Device->CreateBuffer(&SLightDesc, nullptr, &SpotLightBuffer);
+
+	SLight.Col.x = 0.75f;
+	SLight.Col.y = 0.25f;
+	SLight.Col.z = 0.75f;
+	SLight.Col.w = 1.0f;
+
+	SLight.Cratio = .5f;
+
+	SLight.Dir.x = 0.0f;
+	SLight.Dir.y = -1.0f;
+	SLight.Dir.z = 0.0f;
+
+	SLight.Pos.x = 0.0f;
+	SLight.Pos.y = 2.0f;
+	SLight.Pos.z = 1.0f;
+	SLight.Pos.w = 1.0f;
+
+	SLight.MotherOfThree.x = 0.0f;
+	SLight.MotherOfThree.y = 0.0f;
+	SLight.MotherOfThree.z = 0.0f;
+
 #pragma endregion
 
 	TotalTimeLoop.Restart();
@@ -889,7 +942,7 @@ bool DEMO_APP::Run()
 		LightColor.x = 0.4f;
 		LightColor.y = 0.4f;
 		LightColor.z = 0.4f;
-		LightColor.w = 0.4f;
+		LightColor.w = 1.0f;
 	}
 #pragma endregion
 
@@ -910,11 +963,37 @@ bool DEMO_APP::Run()
 	}
 #pragma endregion
 
+#pragma region Spot Light
+	if (GetKeyState(VK_F7) & 0x1)
+	{
+		SLight.Dir.x = 0.0f;
+		SLight.Dir.y = 0.0f;
+		SLight.Dir.z = -1.0f;
+
+		SLight.Pos.x = 0.0f;
+		SLight.Pos.y = 1.0f;
+		SLight.Pos.z = 3.0f;
+		SLight.Pos.w = 1.0f;
+
+	}
+	else
+	{
+		SLight.Dir.x = 0.0f;
+		SLight.Dir.y = -1.0f;
+		SLight.Dir.z = 0.0f;
+
+		SLight.Pos.x = 0.0f;
+		SLight.Pos.y = 2.0f;
+		SLight.Pos.z = 1.0f;
+		SLight.Pos.w = 1.0f;
+	}
+#pragma endregion
+
 	I_Context->OMSetDepthStencilState(pDSState,0); // set so I can do more then one draw call and have lights show.
 
 #pragma region For loop for drawing
 	
-	for (size_t i = 0; i < 2; i++) //for loop to loop through ambient and spot light.
+	for (size_t i = 0; i < 3; i++) //for loop to loop through ambient and spot light.
 	{
 #pragma region Switch case for PixelShaders
 		switch (i)
@@ -926,6 +1005,9 @@ bool DEMO_APP::Run()
 		case 1:
 			I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer);
 			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
+			break;
+		case 2:
+			I_Context->PSSetConstantBuffers(0, 1, &SpotLightBuffer);
 			break;
 		}
 #pragma endregion
@@ -998,6 +1080,13 @@ bool DEMO_APP::Run()
 		memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
 
 		I_Context->Unmap(AmbientLightBuffer, 0);
+
+		//Map SLight
+		I_Context->Map(SpotLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+		memcpy(Local.pData, &SLight, sizeof(SLIGHT));
+
+		I_Context->Unmap(SpotLightBuffer, 0);
 
 
 		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
@@ -1086,7 +1175,7 @@ bool DEMO_APP::Run()
 
 		I_Context->VSSetShader(Model_Object.VertexShader, NULL, 0);
 
-		I_Context->PSSetShader(Model_Object.PixelShader[0], NULL, 0);
+		I_Context->PSSetShader(Model_Object.PixelShader[i], NULL, 0);
 
 		I_Context->IASetInputLayout(Model_Object.InputLayout);
 		//mapping local to constantbuffer
@@ -1137,7 +1226,7 @@ bool DEMO_APP::Run()
 
 		I_Context->VSSetShader(Plane_Object.VertexShader, NULL, 0);
 
-		I_Context->PSSetShader(Plane_Object.PixelShader[0], NULL, 0);
+		I_Context->PSSetShader(Plane_Object.PixelShader[i], NULL, 0);
 
 		I_Context->IASetInputLayout(Plane_Object.InputLayout);
 		//mapping local to constantbuffer
@@ -1202,6 +1291,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(BlendStateNULL)//Cleared
 	SAFE_RELEASE(SamplerState);//Cleared
 	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
+	SAFE_RELEASE(SpotLightBuffer);//Cleared
 	SAFE_RELEASE(pDSState);//Cleared
 
 	UnregisterClass(L"DirectXApplication", application);
