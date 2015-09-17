@@ -44,7 +44,7 @@ using namespace std;
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
 //************************************************************
- 
+
 class DEMO_APP
 {
 	HINSTANCE						application;
@@ -56,7 +56,7 @@ class DEMO_APP
 	ID3D11Device  *I_Device = nullptr;//Use to create//cleared
 	ID3D11DeviceContext *I_Context = nullptr;//Use to bind pipeline objects.//cleared
 	ID3D11RenderTargetView *I_RenderTargetView = nullptr;//cleared
-	
+
 
 	ID3D11Buffer *ConstantBuffer = nullptr;//cleared
 	ID3D11Buffer *WorldConstantBuffer = nullptr;//cleared
@@ -64,13 +64,12 @@ class DEMO_APP
 
 	XTime TotalTimeLoop;
 
-	D3D11_VIEWPORT ViewPort;
-	D3D11_VIEWPORT ViewPort_2;
+	D3D11_VIEWPORT ViewPort[2];
 
 	XMMATRIX SV_ViewMatrix;
 	XMMATRIX SV_ViewMatrix_2;
 	XMMATRIX SV_Projection;
-	
+
 
 
 	struct CONSTANTSCENE
@@ -162,43 +161,43 @@ void DEMO_APP::MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix)
 	{
 
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, 0.0001f * MoveSpeed);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 	if (GetAsyncKeyState(0x53) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0f, -0.0001f* MoveSpeed);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 	//Get input from user for X axis
 	if (GetAsyncKeyState(0x41) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(-0.0001f* MoveSpeed, 0.0f, 0.0f);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x44) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0001f* MoveSpeed, 0.0f, 0.0f);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	//Get input from user for Y axis
 	if (GetAsyncKeyState(0x51) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, -0.0001f* MoveSpeed, 0.0f);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 
 	}
 	if (GetAsyncKeyState(0x45) && 0x1)
 	{
 		XMMATRIX trans = XMMatrixTranslation(0.0f, 0.0001f* MoveSpeed, 0.0f);
-		ConstantScene.viewMatrix = ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
+		ViewMatrix = XMMatrixMultiply(trans, ViewMatrix);
 	}
 
 	//Translation & Rotation
 	if (GetAsyncKeyState(VK_RBUTTON))
 	{
-	//	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
+		//	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 		float Dx = (FLOAT)(currPos.x - PrevPos.x);
 		float Dy = (FLOAT)(currPos.y - PrevPos.y);
 
@@ -289,20 +288,20 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	//viewport
-	ViewPort.MinDepth = 0;
-	ViewPort.MaxDepth = 1;
-	ViewPort.Height = (FLOAT)(des.BufferDesc.Width);
-	ViewPort.Width = (FLOAT)(des.BufferDesc.Height);
-	ViewPort.TopLeftX = 0;
-	ViewPort.TopLeftY = 0;
+	ViewPort[0].MinDepth = 0;
+	ViewPort[0].MaxDepth = 1;
+	ViewPort[0].Height = (FLOAT)(des.BufferDesc.Height / 2);
+	ViewPort[0].Width = (FLOAT)(des.BufferDesc.Width);
+	ViewPort[0].TopLeftX = 0;
+	ViewPort[0].TopLeftY = 0;
 
 
-	ViewPort_2.MinDepth = 0;
-	ViewPort_2.MaxDepth = 1;
-	ViewPort_2.Height = (FLOAT)(des.BufferDesc.Width);
-	ViewPort_2.Width = (FLOAT)(des.BufferDesc.Height);
-	ViewPort_2.TopLeftX = 0;
-	ViewPort_2.TopLeftY = 0;
+	ViewPort[1].MinDepth = 0;
+	ViewPort[1].MaxDepth = 1;
+	ViewPort[1].Height = (FLOAT)(des.BufferDesc.Height / 2);
+	ViewPort[1].Width = (FLOAT)(des.BufferDesc.Width);
+	ViewPort[1].TopLeftX = 0;
+	ViewPort[1].TopLeftY = (FLOAT)(des.BufferDesc.Height / 2);
 
 	ID3D11Texture2D *My_Texture2D;
 
@@ -502,7 +501,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Star_SubresourceData.SysMemSlicePitch = 0;
 
 	unsigned int NumberOfVerts = 12;
-	
+
 	hr = I_Device->CreateBuffer(&StarDesc, &Star_SubresourceData, &Star_Object.ConstantBuffer);
 
 	// Fill in a buffer description.
@@ -588,7 +587,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	hr = I_Device->CreateBuffer(&ModelDesc, &Model_SubresourceData, &Model_Object.ConstantBuffer);
 
-	
+
 
 
 #pragma endregion
@@ -693,10 +692,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
 	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-	
+
 	I_Device->CreateBlendState(&BlendDesc, &BlendState);
 
-	D3D11_SAMPLER_DESC SamplerDesc =  CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
+	D3D11_SAMPLER_DESC SamplerDesc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
 
 	I_Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 
@@ -756,7 +755,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	descDSV.Texture2D.MipSlice = 0;
 
 	// Create the depth stencil view
-	hr = I_Device->CreateDepthStencilView(DepthBuffer,&descDSV,&DepthStencilView);  // [out] Depth stencil view
+	hr = I_Device->CreateDepthStencilView(DepthBuffer, &descDSV, &DepthStencilView);  // [out] Depth stencil view
 
 #pragma endregion
 
@@ -892,13 +891,12 @@ bool DEMO_APP::Run()
 	if (GetKeyState(VK_F6) & 0x1)
 	{
 		MoveCamera(30, SV_ViewMatrix);
-		ConstantScene.viewMatrix = SV_ViewMatrix;
 	}
 	else
 	{
 		MoveCamera(30, SV_ViewMatrix_2);
-		ConstantScene.viewMatrix = SV_ViewMatrix_2;
 	}
+
 	SV_Projection = XMMatrixIdentity();
 
 	FLOAT ZNear = 0.1f;
@@ -910,10 +908,10 @@ bool DEMO_APP::Run()
 
 	XMMATRIX PerspectiveProjection = XMMatrixPerspectiveFovLH(FOV, AspectRatio, ZNear, ZFar);
 
-	
+
 
 	ConstantScene.projectionMatrix = SV_Projection = PerspectiveProjection;
-	
+
 	PrevPos = currPos;
 
 #pragma endregion
@@ -922,13 +920,7 @@ bool DEMO_APP::Run()
 	//How to change view ports.
 	I_Context->OMSetRenderTargets(1, &I_RenderTargetView, DepthStencilView);
 
-	if (GetKeyState(VK_F6) & 0x1)
-	I_Context->RSSetViewports(1, &ViewPort);
-	else
-		I_Context->RSSetViewports(1, &ViewPort_2);
-
 	float ColorRGBA[4] = { 0, 0, 1, 1 };
-	
 	I_Context->ClearRenderTargetView(I_RenderTargetView, ColorRGBA);
 	I_Context->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 #pragma endregion
@@ -989,280 +981,292 @@ bool DEMO_APP::Run()
 	}
 #pragma endregion
 
-	I_Context->OMSetDepthStencilState(pDSState,0); // set so I can do more then one draw call and have lights show.
+	I_Context->OMSetDepthStencilState(pDSState, 0); // set so I can do more then one draw call and have lights show.
 
 #pragma region For loop for drawing
-	
-	for (size_t i = 0; i < 3; i++) //for loop to loop through ambient and spot light.
+	for (size_t j = 0; j < 2; j++)
 	{
-#pragma region Switch case for PixelShaders
-		switch (i)
+		if (j == 1)
 		{
-		case 0:
-			I_Context->PSSetConstantBuffers(0, 1, &AmbientLightBuffer);
-			I_Context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
-			break;
-		case 1:
-			I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer);
-			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
-			break;
-		case 2:
-			I_Context->PSSetConstantBuffers(0, 1, &SpotLightBuffer);
-			break;
+			ConstantScene.viewMatrix = SV_ViewMatrix;
+			I_Context->RSSetViewports(1, &ViewPort[j]);
+
 		}
+		else
+		{
+			ConstantScene.viewMatrix = SV_ViewMatrix_2;
+			I_Context->RSSetViewports(1, &ViewPort[j]);
+		}
+		for (size_t i = 0; i < 3; i++) //for loop to loop through ambient and spot light.
+		{
+
+#pragma region Switch case for PixelShaders
+			switch (i)
+			{
+			case 0:
+				I_Context->PSSetConstantBuffers(0, 1, &AmbientLightBuffer);
+				I_Context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+				break;
+			case 1:
+				I_Context->PSSetConstantBuffers(0, 1, &DirectionalLightBuffer);
+				I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
+				break;
+			case 2:
+				I_Context->PSSetConstantBuffers(0, 1, &SpotLightBuffer);
+				break;
+			}
 #pragma endregion
 
 #pragma region Draw Tron Cube
 
-		Cube_Object.SetWorldMatrix(XMMatrixIdentity());
+			Cube_Object.SetWorldMatrix(XMMatrixIdentity());
 
-		Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 1.0f)));
+			Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 1.0f)));
 
-		WorldMatrixObject = Cube_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Cube_Object.WorldMatrix);
+			WorldMatrixObject = Cube_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Cube_Object.WorldMatrix);
 
-		// Set vertex buffer
-		UINT stride = sizeof(_OBJ_VERT_);
-		UINT offset = 0;
-		I_Context->IASetVertexBuffers(0, 1, &Cube_Object.ConstantBuffer, &stride, &offset);
+			// Set vertex buffer
+			UINT stride = sizeof(_OBJ_VERT_);
+			UINT offset = 0;
+			I_Context->IASetVertexBuffers(0, 1, &Cube_Object.ConstantBuffer, &stride, &offset);
 
-		I_Context->IASetIndexBuffer(Cube_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, offset);
+			I_Context->IASetIndexBuffer(Cube_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, offset);
 
-		I_Context->VSSetShader(Cube_Object.VertexShader, NULL, 0);
+			I_Context->VSSetShader(Cube_Object.VertexShader, NULL, 0);
 
-		I_Context->PSSetShader(Cube_Object.PixelShader[i], NULL, 0);
+			I_Context->PSSetShader(Cube_Object.PixelShader[i], NULL, 0);
 
-		I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
+			I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
 
-		I_Context->IASetInputLayout(Cube_Object.InputLayout);
-
-
-		I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			I_Context->IASetInputLayout(Cube_Object.InputLayout);
 
 
-
-		//mapping local to constantbuffer
-		D3D11_MAPPED_SUBRESOURCE Local;
-		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-		memcpy(Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
-
-		I_Context->Unmap(ConstantBuffer, 0);
-
-
-		//World Constant buffer mapping
-		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-		memcpy(Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
-
-		I_Context->Unmap(WorldConstantBuffer, 0);
-
-
-		//Scene Constant buffer mapping
-		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-		memcpy(Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
-
-		I_Context->Unmap(SceneConstantBuffer, 0);
+			I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
 
-		//Map DLight
-		I_Context->Map(DirectionalLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+			//mapping local to constantbuffer
+			D3D11_MAPPED_SUBRESOURCE Local;
+			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-		memcpy(Local.pData, &Dlight, sizeof(DLIGHT));
+			memcpy(Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
 
-		I_Context->Unmap(DirectionalLightBuffer, 0);
-
-
-		//Map ALight
-		I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-		memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
-
-		I_Context->Unmap(AmbientLightBuffer, 0);
-
-		//Map SLight
-		I_Context->Map(SpotLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
-
-		memcpy(Local.pData, &SLight, sizeof(SLIGHT));
-
-		I_Context->Unmap(SpotLightBuffer, 0);
+			I_Context->Unmap(ConstantBuffer, 0);
 
 
-		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+			//World Constant buffer mapping
+			I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+			memcpy(Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
 
-		I_Context->PSSetSamplers(0, 1, &SamplerState);
+			I_Context->Unmap(WorldConstantBuffer, 0);
 
-		I_Context->DrawIndexed(1692, 0, 0);// drawing cube
+
+			//Scene Constant buffer mapping
+			I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+			memcpy(Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+			I_Context->Unmap(SceneConstantBuffer, 0);
+
+
+
+			//Map DLight
+			I_Context->Map(DirectionalLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+			memcpy(Local.pData, &Dlight, sizeof(DLIGHT));
+
+			I_Context->Unmap(DirectionalLightBuffer, 0);
+
+
+			//Map ALight
+			I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+			memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
+
+			I_Context->Unmap(AmbientLightBuffer, 0);
+
+			//Map SLight
+			I_Context->Map(SpotLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
+
+			memcpy(Local.pData, &SLight, sizeof(SLIGHT));
+
+			I_Context->Unmap(SpotLightBuffer, 0);
+
+
+			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+
+			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+			I_Context->PSSetSamplers(0, 1, &SamplerState);
+
+			I_Context->DrawIndexed(1692, 0, 0);// drawing cube
 
 #pragma endregion
 
 #pragma region Draw Star
 
-		Star_Object.SetWorldMatrix(XMMatrixIdentity());
+			Star_Object.SetWorldMatrix(XMMatrixIdentity());
 
-		Star_Object.SetWorldMatrix(XMMatrixMultiply(Star_Object.WorldMatrix, XMMatrixTranslation(2.0f, 2.0f, 1.0f)));
+			Star_Object.SetWorldMatrix(XMMatrixMultiply(Star_Object.WorldMatrix, XMMatrixTranslation(2.0f, 2.0f, 1.0f)));
 
-		WorldMatrixObject = Star_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Star_Object.WorldMatrix);
+			WorldMatrixObject = Star_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Star_Object.WorldMatrix);
 
-		// Set vertex buffer
-		UINT Star_stride = sizeof(VERTEX4);
-		UINT Star_offset = 0;
-		I_Context->IASetVertexBuffers(0, 1, &Star_Object.ConstantBuffer, &Star_stride, &Star_offset);
+			// Set vertex buffer
+			UINT Star_stride = sizeof(VERTEX4);
+			UINT Star_offset = 0;
+			I_Context->IASetVertexBuffers(0, 1, &Star_Object.ConstantBuffer, &Star_stride, &Star_offset);
 
-		I_Context->IASetIndexBuffer(Star_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Star_offset);
+			I_Context->IASetIndexBuffer(Star_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Star_offset);
 
-		I_Context->VSSetShader(Star_Object.VertexShader, NULL, 0);
-		
-		I_Context->PSSetShader(Star_Object.PixelShader[i], NULL, 0);
+			I_Context->VSSetShader(Star_Object.VertexShader, NULL, 0);
 
-		I_Context->IASetInputLayout(Star_Object.InputLayout);
+			I_Context->PSSetShader(Star_Object.PixelShader[i], NULL, 0);
 
-		I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			I_Context->IASetInputLayout(Star_Object.InputLayout);
 
-		Star_Object.ShaderResourceView = nullptr;
+			I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		I_Context->PSSetShaderResources(0, 1, &Star_Object.ShaderResourceView);
+			Star_Object.ShaderResourceView = nullptr;
 
-
-		//mapping local to constantbuffer
-		D3D11_MAPPED_SUBRESOURCE Star_Local;
-		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
-
-		memcpy(Star_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
-
-		I_Context->Unmap(ConstantBuffer, 0);
-
-		//World Constant buffer mapping
-		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
-
-		memcpy(Star_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
-
-		I_Context->Unmap(WorldConstantBuffer, 0);
+			I_Context->PSSetShaderResources(0, 1, &Star_Object.ShaderResourceView);
 
 
-		//Scene Constant buffer mapping
-		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+			//mapping local to constantbuffer
+			D3D11_MAPPED_SUBRESOURCE Star_Local;
+			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
 
-		memcpy(Star_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+			memcpy(Star_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
 
-		I_Context->Unmap(SceneConstantBuffer, 0);
+			I_Context->Unmap(ConstantBuffer, 0);
+
+			//World Constant buffer mapping
+			I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+
+			memcpy(Star_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+			I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+			//Scene Constant buffer mapping
+			I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Star_Local);
+
+			memcpy(Star_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+			I_Context->Unmap(SceneConstantBuffer, 0);
 
 
 
-		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
-		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-		I_Context->DrawIndexed(60, 0, 0);
+			I_Context->DrawIndexed(60, 0, 0);
 #pragma endregion
 
 #pragma region Draw Model
 
-		Model_Object.SetWorldMatrix(XMMatrixIdentity());
+			Model_Object.SetWorldMatrix(XMMatrixIdentity());
 
-		Model_Object.SetWorldMatrix(XMMatrixMultiply(Model_Object.WorldMatrix, XMMatrixTranslation(-3.0f, 2.0f, 1.0f)));
+			Model_Object.SetWorldMatrix(XMMatrixMultiply(Model_Object.WorldMatrix, XMMatrixTranslation(-3.0f, 2.0f, 1.0f)));
 
-		WorldMatrixObject = Model_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Model_Object.WorldMatrix);
+			WorldMatrixObject = Model_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Model_Object.WorldMatrix);
 
-		// Set vertex buffer
-		UINT Model_stride = sizeof(SIMPLE_VERTEX);
-		UINT Model_offset = 0;
-		I_Context->IASetVertexBuffers(0, 1, &Model_Object.ConstantBuffer, &Model_stride, &Model_offset);
+			// Set vertex buffer
+			UINT Model_stride = sizeof(SIMPLE_VERTEX);
+			UINT Model_offset = 0;
+			I_Context->IASetVertexBuffers(0, 1, &Model_Object.ConstantBuffer, &Model_stride, &Model_offset);
 
-		//I_Context->IASetIndexBuffer(Model_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Model_offset);
+			//I_Context->IASetIndexBuffer(Model_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Model_offset);
 
-		I_Context->VSSetShader(Model_Object.VertexShader, NULL, 0);
+			I_Context->VSSetShader(Model_Object.VertexShader, NULL, 0);
 
-		I_Context->PSSetShader(Model_Object.PixelShader[i], NULL, 0);
+			I_Context->PSSetShader(Model_Object.PixelShader[i], NULL, 0);
 
-		I_Context->IASetInputLayout(Model_Object.InputLayout);
-		//mapping local to constantbuffer
-		D3D11_MAPPED_SUBRESOURCE Model_Local;
-		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+			I_Context->IASetInputLayout(Model_Object.InputLayout);
+			//mapping local to constantbuffer
+			D3D11_MAPPED_SUBRESOURCE Model_Local;
+			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
 
-		memcpy(Model_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+			memcpy(Model_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
 
-		I_Context->Unmap(ConstantBuffer, 0);
+			I_Context->Unmap(ConstantBuffer, 0);
 
-		//World Constant buffer mapping
-		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+			//World Constant buffer mapping
+			I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
 
-		memcpy(Model_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+			memcpy(Model_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
 
-		I_Context->Unmap(WorldConstantBuffer, 0);
+			I_Context->Unmap(WorldConstantBuffer, 0);
 
 
-		//Scene Constant buffer mapping
-		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
+			//Scene Constant buffer mapping
+			I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Model_Local);
 
-		memcpy(Model_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+			memcpy(Model_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
 
-		I_Context->Unmap(SceneConstantBuffer, 0);
+			I_Context->Unmap(SceneConstantBuffer, 0);
 
-		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
-		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-		I_Context->Draw(36, 0);
+			I_Context->Draw(36, 0);
 
 
 #pragma endregion
 
 #pragma region Draw Plane
 
-		Plane_Object.SetWorldMatrix(XMMatrixIdentity());
+			Plane_Object.SetWorldMatrix(XMMatrixIdentity());
 
-		Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, -1.0f, 0.0f)));
+			Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, -1.0f, 0.0f)));
 
-		WorldMatrixObject = Plane_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Plane_Object.WorldMatrix);
+			WorldMatrixObject = Plane_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Plane_Object.WorldMatrix);
 
-		// Set vertex buffer
-		UINT Plane_stride = sizeof(SIMPLE_VERTEX);
-		UINT Plane_offset = 0;
-		I_Context->IASetVertexBuffers(0, 1, &Plane_Object.ConstantBuffer, &Plane_stride, &Plane_offset);
+			// Set vertex buffer
+			UINT Plane_stride = sizeof(SIMPLE_VERTEX);
+			UINT Plane_offset = 0;
+			I_Context->IASetVertexBuffers(0, 1, &Plane_Object.ConstantBuffer, &Plane_stride, &Plane_offset);
 
-		//I_Context->IASetIndexBuffer(Plane_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Plane_offset);
+			//I_Context->IASetIndexBuffer(Plane_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Plane_offset);
 
-		I_Context->VSSetShader(Plane_Object.VertexShader, NULL, 0);
+			I_Context->VSSetShader(Plane_Object.VertexShader, NULL, 0);
 
-		I_Context->PSSetShader(Plane_Object.PixelShader[i], NULL, 0);
+			I_Context->PSSetShader(Plane_Object.PixelShader[i], NULL, 0);
 
-		I_Context->IASetInputLayout(Plane_Object.InputLayout);
-		//mapping local to constantbuffer
-		D3D11_MAPPED_SUBRESOURCE Plane_Local;
-		I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+			I_Context->IASetInputLayout(Plane_Object.InputLayout);
+			//mapping local to constantbuffer
+			D3D11_MAPPED_SUBRESOURCE Plane_Local;
+			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
 
-		memcpy(Plane_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+			memcpy(Plane_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
 
-		I_Context->Unmap(ConstantBuffer, 0);
+			I_Context->Unmap(ConstantBuffer, 0);
 
-		//World Constant buffer mapping
-		I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+			//World Constant buffer mapping
+			I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
 
-		memcpy(Plane_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+			memcpy(Plane_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
 
-		I_Context->Unmap(WorldConstantBuffer, 0);
+			I_Context->Unmap(WorldConstantBuffer, 0);
 
 
-		//Scene Constant buffer mapping
-		I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
+			//Scene Constant buffer mapping
+			I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
 
-		memcpy(Plane_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+			memcpy(Plane_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
 
-		I_Context->Unmap(SceneConstantBuffer, 0);
+			I_Context->Unmap(SceneConstantBuffer, 0);
 
-		I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
-		I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-		I_Context->Draw(12, 0);
+			I_Context->Draw(12, 0);
 
 
 #pragma endregion
 
-
-
-	}//end of for loop
+		}//end of for loop
+	}//end of forloop for viewports
 #pragma endregion
 
 	I_SwapChain->Present(0, 0);
@@ -1289,7 +1293,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(AmbientLightBuffer);//Cleared
 	SAFE_RELEASE(BlendState);//Cleared
 	SAFE_RELEASE(BlendStateNULL)//Cleared
-	SAFE_RELEASE(SamplerState);//Cleared
+		SAFE_RELEASE(SamplerState);//Cleared
 	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
 	SAFE_RELEASE(SpotLightBuffer);//Cleared
 	SAFE_RELEASE(pDSState);//Cleared
@@ -1330,7 +1334,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case (WM_DESTROY) : { PostQuitMessage(0); }
-		break;
+						break;
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
