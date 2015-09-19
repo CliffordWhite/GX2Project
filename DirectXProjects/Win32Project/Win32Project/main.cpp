@@ -37,8 +37,8 @@ using namespace std;
 #include "Create_D3Object.h"
 // TODO: PART 2 STEP 6
 
-#define BACKBUFFER_WIDTH	500
-#define BACKBUFFER_HEIGHT	500
+#define BACKBUFFER_WIDTH	1000
+#define BACKBUFFER_HEIGHT	1000
 
 
 //************************************************************
@@ -983,7 +983,7 @@ bool DEMO_APP::Run()
 
 	I_Context->OMSetDepthStencilState(pDSState, 0); // set so I can do more then one draw call and have lights show.
 
-#pragma region For loop for drawing
+#pragma region For loop for drawing and viewports
 	for (size_t j = 0; j < 2; j++)
 	{
 		if (j == 1)
