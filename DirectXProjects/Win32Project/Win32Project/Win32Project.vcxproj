@@ -159,12 +159,14 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="XTime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Create_D3Object.h" />
     <ClInclude Include="Cube.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="MathLib.h" />
     <ClInclude Include="Tron.h" />
     <ClInclude Include="XTime.h" />
@@ -212,6 +214,9 @@
   <ItemGroup>
     <None Include="Trivial_PS.csh" />
     <None Include="Trivial_VS.csh" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="cherryblossomtree.dds" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

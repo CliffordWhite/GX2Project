@@ -42,6 +42,10 @@ float4 main(V_IN Input) : SV_TARGET
 		float3 viewdir = normalize(Input.View - Input.World);
 		float3 halfvector = normalize((-Dir) + viewdir);
 		float intensity = max(clamp(dot(Input.Nrm, normalize(halfvector)), 0, 1), 1);
+	
+	RESULT *= intensity;
+	if (RESULT.b <= 0.1f)
+		discard;
 
-	return RESULT * intensity; // return a transition based on the detail alpha
+	return RESULT; // return a transition based on the detail alpha
 }

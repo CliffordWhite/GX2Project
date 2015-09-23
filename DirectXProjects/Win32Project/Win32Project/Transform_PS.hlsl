@@ -43,5 +43,9 @@ float4 main(V_IN Input) : SV_TARGET
 		float3 Normal = normalize(Input.NrmH);
 		float4 p_light = clamp((dot(pdir, Normal) * baseColor), 0, 1);
 
-	return color * A_Light * p_light; // return a transition based on the detail alpha
+		color *= (A_Light + p_light);
+
+	if (color.b <= 0.1f)
+		discard;
+	return color; // return a transition based on the detail alpha
 }

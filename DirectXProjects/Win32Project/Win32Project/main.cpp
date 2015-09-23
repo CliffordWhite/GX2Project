@@ -25,6 +25,7 @@
 #include "SpotLight.csh"
 #include "Cube.h"
 #include "Tron.h"
+#include "DDSTextureLoader.h"
 
 using namespace std;
 // BEGIN PART 1
@@ -63,6 +64,7 @@ class DEMO_APP
 	ID3D11Buffer *SceneConstantBuffer = nullptr;//cleared
 
 	ID3D11RasterizerState* RasterState = nullptr;//cleared
+
 
 	XTime TotalTimeLoop;
 
@@ -145,11 +147,18 @@ class DEMO_APP
 	float MoveCameraX = 0.0f;
 	POINT currPos, PrevPos;
 
+	XMVECTOR CameraPos;
+
 #pragma region Objects
 	Create_D3Object Cube_Object;
 	Create_D3Object Star_Object;
 	Create_D3Object Model_Object;
 	Create_D3Object Plane_Object;
+	Create_D3Object PlaneTrans_Object;
+	Create_D3Object PlaneTrans2_Object;
+	Create_D3Object PlaneTrans3_Object;
+	Create_D3Object Tree_Object;
+
 
 #pragma endregion
 public:
@@ -158,6 +167,10 @@ public:
 	bool Run();
 	bool ShutDown();
 	void MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix);
+	void Trans1(UINT i);
+	void Trans2(UINT i);
+	void Trans3(UINT i);
+
 };
 
 void DEMO_APP::MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix)
@@ -234,7 +247,7 @@ void DEMO_APP::MoveCamera(float MoveSpeed, XMMATRIX &ViewMatrix)
 		//ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 	}
 
-
+	CameraPos = { ViewMatrix.r[3].m128_f32[0], ViewMatrix.r[3].m128_f32[1], ViewMatrix.r[3].m128_f32[2] };
 	ViewMatrix = XMMatrixInverse(nullptr, ViewMatrix);
 }
 
@@ -395,6 +408,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//ID3D11ShaderResourceView // ask about null. // samplerstate?
 
 	I_Device->CreateShaderResourceView(Cube_Object.Texture2DBuffer, NULL, &Cube_Object.ShaderResourceView);
+
+	//hr = CreateDDSTextureFromFile(I_Device, L"Tron.dds", (ID3D11Resource**)(&Cube_Object.Texture2DBuffer), &Cube_Object.ShaderResourceView);
+
+	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans_Object.Texture2DBuffer), &PlaneTrans_Object.ShaderResourceView);
+	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans2_Object.Texture2DBuffer), &PlaneTrans2_Object.ShaderResourceView);
+	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans3_Object.Texture2DBuffer), &PlaneTrans3_Object.ShaderResourceView);
 
 #pragma endregion
 
@@ -623,6 +642,73 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion
 #pragma endregion
 
+#pragma region Create and Set Tree
+#pragma region Create Model
+	vector<XMFLOAT3> Tree_Vertices;
+	vector<XMFLOAT2> Tree_UVS;
+	vector<XMFLOAT3> Tree_Normals;
+	Tree_Object.loadOBJ("Tree.obj", Tree_Vertices, Tree_UVS, Tree_Normals);
+	SIMPLE_VERTEX Tree[1092];
+	for (size_t i = 0; i < 1092; i++)
+	{
+		Tree[i].Verts.x = Tree_Vertices[i].x;
+		Tree[i].Verts.y = Tree_Vertices[i].y;
+		Tree[i].Verts.z = Tree_Vertices[i].z;
+		Tree[i].UV.x = Tree_UVS[i].x;
+		Tree[i].UV.y = 1 - Tree_UVS[i].y;
+		Tree[i].NRM.x = Tree_Normals[i].x;
+		Tree[i].NRM.y = Tree_Normals[i].y;
+		Tree[i].NRM.z = Tree_Normals[i].z;
+	}
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC TreeDesc;
+	TreeDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 1092;
+	TreeDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	TreeDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	TreeDesc.CPUAccessFlags = NULL;
+	TreeDesc.MiscFlags = 0;
+	TreeDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Tree_SubresourceData;
+	Tree_SubresourceData.pSysMem = Tree;
+	Tree_SubresourceData.SysMemPitch = 0;
+	Tree_SubresourceData.SysMemSlicePitch = 0;
+
+
+	hr = I_Device->CreateBuffer(&TreeDesc, &Tree_SubresourceData, &Tree_Object.ConstantBuffer);
+	
+	hr = CreateDDSTextureFromFile(I_Device, L"Tree.dds", (ID3D11Resource**)(&Tree_Object.Texture2DBuffer), &Tree_Object.ShaderResourceView);
+
+
+
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+	D3D11_INPUT_ELEMENT_DESC Tree_Layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &Tree_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &Tree_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Tree_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Tree_Object.PixelShader[2]);
+
+
+	I_Device->CreateInputLayout(Tree_Layout, 3, Transform_VS, sizeof(Transform_VS), &Tree_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
+
 #pragma region Create and Set Plane
 #pragma region Create Plane
 	/*vector<XMFLOAT3> Plane_Vertices;
@@ -717,7 +803,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 #pragma region Vertex/Pixel shader and layout
-	D3D11_INPUT_ELEMENT_DESC Plane_Layout[] =
+	D3D11_INPUT_ELEMENT_DESC PlaneT_Layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -735,10 +821,176 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 
-	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &Plane_Object.InputLayout);
+	I_Device->CreateInputLayout(PlaneT_Layout, 3, Transform_VS, sizeof(Transform_VS), &Plane_Object.InputLayout);
 
 #pragma endregion
 #pragma endregion
+
+#pragma region Create/Set Plane Trans
+#pragma region Creating Plane
+	SIMPLE_VERTEX planes[4];
+	planes[0].Verts.x = -1;
+	planes[0].Verts.y = 1;
+	planes[0].Verts.z = 1;
+
+	planes[1].Verts.x = 1;
+	planes[1].Verts.y = 1;
+	planes[1].Verts.z = 1;
+
+	planes[2].Verts.x = -1;
+	planes[2].Verts.y = 2;
+	planes[2].Verts.z = 1;
+
+	planes[3].Verts.x = 1;
+	planes[3].Verts.y = 2;
+	planes[3].Verts.z = 1;
+
+	planes[0].NRM.x = 0;
+	planes[0].NRM.y = 1;
+	planes[0].NRM.z = 0;
+	planes[1].NRM.x = 0;
+	planes[1].NRM.y = 1;
+	planes[1].NRM.z = 0;
+	planes[2].NRM.x = 0;
+	planes[2].NRM.y = 1;
+	planes[2].NRM.z = 0;
+	planes[3].NRM.x = 0;
+	planes[3].NRM.y = 1;
+	planes[3].NRM.z = 0;
+
+	planes[0].UV.x = 0;
+	planes[0].UV.y = 0;
+	planes[1].UV.x = 1;
+	planes[1].UV.y = 0;
+	planes[2].UV.x = 0;
+	planes[2].UV.y = 1;
+	planes[3].UV.x = 1;
+	planes[3].UV.y = 1;
+
+
+	unsigned int planeI[6];
+	planeI[0] = 0;
+	planeI[1] = 1;
+	planeI[2] = 2;
+	planeI[3] = 3;
+	planeI[4] = 2;
+	planeI[5] = 1;
+
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC PlaneDes;
+	PlaneDes.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+	PlaneDes.Usage = D3D11_USAGE_IMMUTABLE;
+	PlaneDes.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	PlaneDes.CPUAccessFlags = NULL;
+	PlaneDes.MiscFlags = 0;
+	PlaneDes.StructureByteStride = sizeof(SIMPLE_VERTEX);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Plane_Subresource;
+	Plane_Subresource.pSysMem = &planes;
+	Plane_Subresource.SysMemPitch = 0;
+	Plane_Subresource.SysMemSlicePitch = 0;
+
+
+	hr = I_Device->CreateBuffer(&PlaneDes, &Plane_Subresource, &PlaneTrans_Object.ConstantBuffer);
+
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC PlaneIndexBufferDes;
+	PlaneIndexBufferDes.ByteWidth = sizeof(unsigned int) * 6;
+	PlaneIndexBufferDes.Usage = D3D11_USAGE_IMMUTABLE;
+	PlaneIndexBufferDes.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	PlaneIndexBufferDes.CPUAccessFlags = NULL;
+	PlaneIndexBufferDes.MiscFlags = 0;
+	PlaneIndexBufferDes.StructureByteStride = sizeof(unsigned int);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Plane_Index_Subresource;
+	Plane_Index_Subresource.pSysMem = &planeI;
+	Plane_Index_Subresource.SysMemPitch = 0;
+	Plane_Index_Subresource.SysMemSlicePitch = 0;
+
+	hr = I_Device->CreateBuffer(&PlaneIndexBufferDes, &Plane_Index_Subresource, &PlaneTrans_Object.IndexBuffer);
+
+
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+	D3D11_INPUT_ELEMENT_DESC Plane_Layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &PlaneTrans_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &PlaneTrans_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &PlaneTrans_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &PlaneTrans_Object.PixelShader[2]);
+
+
+
+	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &PlaneTrans_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
+#pragma region Create/Set Plane Trans2
+#pragma region Creating Plane
+
+	hr = I_Device->CreateBuffer(&PlaneDes, &Plane_Subresource, &PlaneTrans2_Object.ConstantBuffer);
+
+	hr = I_Device->CreateBuffer(&PlaneIndexBufferDes, &Plane_Index_Subresource, &PlaneTrans2_Object.IndexBuffer);
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &PlaneTrans2_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &PlaneTrans2_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &PlaneTrans2_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &PlaneTrans2_Object.PixelShader[2]);
+
+
+
+	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &PlaneTrans2_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
+#pragma region Create/Set Plane Trans3
+#pragma region Creating Plane
+
+	hr = I_Device->CreateBuffer(&PlaneDes, &Plane_Subresource, &PlaneTrans3_Object.ConstantBuffer);
+
+	hr = I_Device->CreateBuffer(&PlaneIndexBufferDes, &Plane_Index_Subresource, &PlaneTrans3_Object.IndexBuffer);
+
+#pragma endregion
+#pragma region Vertex/Pixel shader and layout
+
+	I_Device->CreateVertexShader(Transform_VS, sizeof(Transform_VS), nullptr, &PlaneTrans3_Object.VertexShader);
+
+	I_Device->CreatePixelShader(Transform_PS, sizeof(Transform_PS), nullptr, &PlaneTrans3_Object.PixelShader[0]);
+
+
+	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &PlaneTrans3_Object.PixelShader[1]);
+
+	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &PlaneTrans3_Object.PixelShader[2]);
+
+
+
+	I_Device->CreateInputLayout(Plane_Layout, 3, Transform_VS, sizeof(Transform_VS), &PlaneTrans3_Object.InputLayout);
+
+#pragma endregion
+#pragma endregion
+
 
 #pragma region Sampler and Blend State;
 
@@ -750,14 +1002,21 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
 
 	I_Device->CreateBlendState(&BlendDesc, &BlendState);
 
 	D3D11_SAMPLER_DESC SamplerDesc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
-
+	SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	SamplerDesc.MinLOD = -FLT_MAX;
+	SamplerDesc.MaxLOD = FLT_MAX;
+	SamplerDesc.MaxAnisotropy = 16;
+	SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 	I_Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 
@@ -770,6 +1029,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	RasterDes.FillMode = D3D11_FILL_SOLID;
 	RasterDes.CullMode = D3D11_CULL_NONE;
 	RasterDes.AntialiasedLineEnable = true;
+	RasterDes.MultisampleEnable = true;
+
 	I_Device->CreateRasterizerState(&RasterDes, &RasterState);
 #pragma endregion
 
@@ -965,7 +1226,6 @@ bool DEMO_APP::Run()
 
 	TotalTimeLoop.Signal();
 
-	I_Context->RSSetState(RasterState);
 
 #pragma region Camera Movement
 
@@ -1068,6 +1328,7 @@ bool DEMO_APP::Run()
 #pragma endregion
 
 	I_Context->OMSetDepthStencilState(pDSState, 0); // set so I can do more then one draw call and have lights show.
+	I_Context->RSSetState(NULL);
 
 #pragma region For loop for drawing and viewports
 	for (size_t j = 0; j < 2; j++)
@@ -1300,6 +1561,60 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+#pragma region Draw Tree
+
+			Tree_Object.SetWorldMatrix(XMMatrixIdentity());
+
+			Tree_Object.SetWorldMatrix(XMMatrixMultiply(Tree_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 10.0f)));
+
+			WorldMatrixObject = Tree_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Tree_Object.WorldMatrix);
+
+			// Set vertex buffer
+			UINT Tree_stride = sizeof(SIMPLE_VERTEX);
+			UINT Tree_offset = 0;
+			I_Context->IASetVertexBuffers(0, 1, &Tree_Object.ConstantBuffer, &Tree_stride, &Tree_offset);
+
+			//I_Context->IASetIndexBuffer(Tree_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Tree_offset);
+			I_Context->PSSetShaderResources(0, 1, &Tree_Object.ShaderResourceView);
+
+			I_Context->VSSetShader(Tree_Object.VertexShader, NULL, 0);
+
+			I_Context->PSSetShader(Tree_Object.PixelShader[i], NULL, 0);
+
+
+
+			I_Context->IASetInputLayout(Tree_Object.InputLayout);
+			//mapping local to constantbuffer
+			D3D11_MAPPED_SUBRESOURCE Tree_Local;
+			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Tree_Local);
+
+			memcpy(Tree_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+			I_Context->Unmap(ConstantBuffer, 0);
+
+			//World Constant buffer mapping
+			I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Tree_Local);
+
+			memcpy(Tree_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+			I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+			//Scene Constant buffer mapping
+			I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Tree_Local);
+
+			memcpy(Tree_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+			I_Context->Unmap(SceneConstantBuffer, 0);
+
+			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+			I_Context->Draw(1092, 0);
+
+
+#pragma endregion
+
 #pragma region Draw Plane
 
 			Plane_Object.SetWorldMatrix(XMMatrixIdentity());
@@ -1356,6 +1671,27 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+#pragma region Draw Trans
+			I_Context->RSSetState(RasterState);
+			I_Context->OMSetBlendState(BlendState, nullptr, 0xffffffff);
+
+			if (CameraPos.m128_f32[2] < -10.0f)
+			{
+				Trans1(i);
+				Trans2(i);
+				Trans3(i);
+			}
+			else
+			{
+				Trans3(i);
+				Trans2(i);
+				Trans1(i);
+			}
+			I_Context->RSSetState(NULL);
+
+#pragma endregion
+
+
 		}//end of for loop
 	}//end of forloop for viewports
 #pragma endregion
@@ -1389,8 +1725,194 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(SpotLightBuffer);//Cleared
 	SAFE_RELEASE(pDSState);//Cleared
 	SAFE_RELEASE(RasterState);//Cleared
+
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
+}
+
+
+
+void DEMO_APP::Trans1(UINT i)
+{
+#pragma region Draw Plane Trans1
+
+
+	PlaneTrans_Object.SetWorldMatrix(XMMatrixIdentity());
+
+	PlaneTrans_Object.SetWorldMatrix(XMMatrixMultiply(PlaneTrans_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, -10.0f)));
+
+	WorldMatrixObject = PlaneTrans_Object.WorldMatrix;
+
+	I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Set vertex buffer
+	UINT PlaneT_stride = sizeof(SIMPLE_VERTEX);
+	UINT PlaneT_offset = 0;
+	I_Context->IASetVertexBuffers(0, 1, &PlaneTrans_Object.ConstantBuffer, &PlaneT_stride, &PlaneT_offset);
+
+	I_Context->IASetIndexBuffer(PlaneTrans_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, PlaneT_offset);
+
+	I_Context->VSSetShader(PlaneTrans_Object.VertexShader, NULL, 0);
+
+	I_Context->PSSetShader(PlaneTrans_Object.PixelShader[i], NULL, 0);
+
+	I_Context->PSSetShaderResources(0, 1, &PlaneTrans_Object.ShaderResourceView);
+
+	I_Context->IASetInputLayout(PlaneTrans_Object.InputLayout);
+
+	//mapping local to constantbuffer
+	D3D11_MAPPED_SUBRESOURCE PlaneTrans_Local;
+	I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans_Local);
+
+	memcpy(PlaneTrans_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+	I_Context->Unmap(ConstantBuffer, 0);
+
+	//World Constant buffer mapping
+	I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans_Local);
+
+	memcpy(PlaneTrans_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+	I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+	//Scene Constant buffer mapping
+	I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans_Local);
+
+	memcpy(PlaneTrans_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+	I_Context->Unmap(SceneConstantBuffer, 0);
+
+	I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+	I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+	I_Context->DrawIndexed(6, 0, 0);
+
+
+#pragma endregion
+
+}
+
+void DEMO_APP::Trans2(UINT i)
+{
+#pragma region Draw Plane Trans2
+
+
+	PlaneTrans2_Object.SetWorldMatrix(XMMatrixIdentity());
+
+	PlaneTrans2_Object.SetWorldMatrix(XMMatrixMultiply(PlaneTrans2_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, -11.0f)));
+
+	WorldMatrixObject = PlaneTrans2_Object.WorldMatrix;
+
+	I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	UINT PlaneT2_stride = sizeof(SIMPLE_VERTEX);
+	UINT PlaneT2_offset = 0;
+
+	I_Context->IASetVertexBuffers(0, 1, &PlaneTrans2_Object.ConstantBuffer, &PlaneT2_stride, &PlaneT2_offset);
+
+	I_Context->IASetIndexBuffer(PlaneTrans2_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, PlaneT2_offset);
+
+	I_Context->VSSetShader(PlaneTrans2_Object.VertexShader, NULL, 0);
+
+	I_Context->PSSetShader(PlaneTrans2_Object.PixelShader[i], NULL, 0);
+
+	I_Context->PSSetShaderResources(0, 1, &PlaneTrans2_Object.ShaderResourceView);
+
+	I_Context->IASetInputLayout(PlaneTrans2_Object.InputLayout);
+
+	D3D11_MAPPED_SUBRESOURCE PlaneTrans2_Local;
+
+	I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans2_Local);
+
+	memcpy(PlaneTrans2_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+	I_Context->Unmap(ConstantBuffer, 0);
+
+	//World Constant buffer mapping
+	I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans2_Local);
+
+	memcpy(PlaneTrans2_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+	I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+	//Scene Constant buffer mapping
+	I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans2_Local);
+
+	memcpy(PlaneTrans2_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+	I_Context->Unmap(SceneConstantBuffer, 0);
+
+	I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+	I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+	I_Context->DrawIndexed(6, 0, 0);
+
+
+#pragma endregion
+
+}
+
+void DEMO_APP::Trans3(UINT i)
+{
+#pragma region Draw Plane Trans3
+
+
+	PlaneTrans3_Object.SetWorldMatrix(XMMatrixIdentity());
+
+	PlaneTrans3_Object.SetWorldMatrix(XMMatrixMultiply(PlaneTrans3_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, -12.0f)));
+
+	WorldMatrixObject = PlaneTrans3_Object.WorldMatrix;
+
+	I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	UINT PlaneT3_stride = sizeof(SIMPLE_VERTEX);
+	UINT PlaneT3_offset = 0;
+
+	I_Context->IASetVertexBuffers(0, 1, &PlaneTrans3_Object.ConstantBuffer, &PlaneT3_stride, &PlaneT3_offset);
+
+	I_Context->IASetIndexBuffer(PlaneTrans3_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, PlaneT3_offset);
+
+	I_Context->VSSetShader(PlaneTrans3_Object.VertexShader, NULL, 0);
+
+	I_Context->PSSetShader(PlaneTrans3_Object.PixelShader[i], NULL, 0);
+
+	I_Context->PSSetShaderResources(0, 1, &PlaneTrans3_Object.ShaderResourceView);
+
+	I_Context->IASetInputLayout(PlaneTrans3_Object.InputLayout);
+
+	D3D11_MAPPED_SUBRESOURCE PlaneTrans3_Local;
+
+	I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans3_Local);
+
+	memcpy(PlaneTrans3_Local.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+	I_Context->Unmap(ConstantBuffer, 0);
+
+	//World Constant buffer mapping
+	I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans3_Local);
+
+	memcpy(PlaneTrans3_Local.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+	I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+	//Scene Constant buffer mapping
+	I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &PlaneTrans3_Local);
+
+	memcpy(PlaneTrans3_Local.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+	I_Context->Unmap(SceneConstantBuffer, 0);
+
+	I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+	I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+	I_Context->DrawIndexed(6, 0, 0);
+
+
+#pragma endregion
+
 }
 
 //************************************************************
