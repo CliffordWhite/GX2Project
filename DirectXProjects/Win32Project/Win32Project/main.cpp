@@ -62,6 +62,8 @@ class DEMO_APP
 	ID3D11Buffer *WorldConstantBuffer = nullptr;//cleared
 	ID3D11Buffer *SceneConstantBuffer = nullptr;//cleared
 
+	ID3D11RasterizerState* RasterState = nullptr;//cleared
+
 	XTime TotalTimeLoop;
 
 	D3D11_VIEWPORT ViewPort[2];
@@ -630,14 +632,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	SIMPLE_VERTEX Plane_Pyramid[12];
 	for (size_t i = 0; i < 12; i++)
 	{
-		Plane_Pyramid[i].Verts.x = Plane_Vertices[i].x;
-		Plane_Pyramid[i].Verts.y = Plane_Vertices[i].y;
-		Plane_Pyramid[i].Verts.z = Plane_Vertices[i].z;
-		Plane_Pyramid[i].UV.x = Plane_UVS[i].x;
-		Plane_Pyramid[i].UV.y = Plane_UVS[i].y;
-		Plane_Pyramid[i].NRM.x = Plane_Normals[i].x;
-		Plane_Pyramid[i].NRM.y = Plane_Normals[i].y;
-		Plane_Pyramid[i].NRM.z = Plane_Normals[i].z;
+	Plane_Pyramid[i].Verts.x = Plane_Vertices[i].x;
+	Plane_Pyramid[i].Verts.y = Plane_Vertices[i].y;
+	Plane_Pyramid[i].Verts.z = Plane_Vertices[i].z;
+	Plane_Pyramid[i].UV.x = Plane_UVS[i].x;
+	Plane_Pyramid[i].UV.y = Plane_UVS[i].y;
+	Plane_Pyramid[i].NRM.x = Plane_Normals[i].x;
+	Plane_Pyramid[i].NRM.y = Plane_Normals[i].y;
+	Plane_Pyramid[i].NRM.z = Plane_Normals[i].z;
 	}*/
 
 #pragma region Creating Plane
@@ -696,7 +698,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC PlaneIndexBufferDesc;
-	PlaneIndexBufferDesc.ByteWidth = sizeof(unsigned int)*6;
+	PlaneIndexBufferDesc.ByteWidth = sizeof(unsigned int) * 6;
 	PlaneIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	PlaneIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	PlaneIndexBufferDesc.CPUAccessFlags = NULL;
@@ -756,8 +758,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	D3D11_SAMPLER_DESC SamplerDesc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
 
+
 	I_Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 
+#pragma endregion
+
+#pragma region Raster State
+	D3D11_RASTERIZER_DESC RasterDes;
+	ZeroMemory(&RasterDes, sizeof(RasterDes));
+	RasterDes.FrontCounterClockwise = false;
+	RasterDes.FillMode = D3D11_FILL_SOLID;
+	RasterDes.CullMode = D3D11_CULL_NONE;
+	RasterDes.AntialiasedLineEnable = true;
+	I_Device->CreateRasterizerState(&RasterDes, &RasterState);
 #pragma endregion
 
 #pragma region DepthBuffer
@@ -812,7 +825,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	descDSV.Texture2D.MipSlice = 0;
 
 	// Create the depth stencil view
 	hr = I_Device->CreateDepthStencilView(DepthBuffer, &descDSV, &DepthStencilView);  // [out] Depth stencil view
@@ -864,17 +876,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	hr = I_Device->CreateBuffer(&SceneConstantBufferDesc, nullptr, &SceneConstantBuffer);
 
-
 	Alight.P_LightPos.x = -2.0f;
 	Alight.P_LightPos.y = 0.0f;
 	Alight.P_LightPos.z = 0.0f;
-	
-	Alight.A_Light.x = 0.4f;
-	Alight.A_Light.y = 0.4f;
-	Alight.A_Light.z = 0.4f;
-	Alight.A_Light.w = 1.0f;
-	
 
+	Alight.A_Light.x = 0.5f;
+	Alight.A_Light.y = 0.5f;
+	Alight.A_Light.z = 0.5f;
+	Alight.A_Light.w = 1.0f;
 
 	D3D11_BUFFER_DESC AmbientLightConstantBufferDesc;
 
@@ -956,6 +965,8 @@ bool DEMO_APP::Run()
 
 	TotalTimeLoop.Signal();
 
+	I_Context->RSSetState(RasterState);
+
 #pragma region Camera Movement
 
 	GetCursorPos(&currPos);
@@ -996,9 +1007,9 @@ bool DEMO_APP::Run()
 	I_Context->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 #pragma endregion
 
-#pragma region Ambient Light
+#pragma region point Light
 
-	
+
 	if (GetKeyState(VK_F3) & 0x1)
 	{
 		Alight.P_LightPos.x = 1.0f;
@@ -1235,7 +1246,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-		//	I_Context->DrawIndexed(60, 0, 0);
+			I_Context->DrawIndexed(60, 0, 0);
 #pragma endregion
 
 #pragma region Draw Model
@@ -1284,7 +1295,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			//I_Context->Draw(36, 0);
+			I_Context->Draw(36, 0);
 
 
 #pragma endregion
@@ -1296,7 +1307,7 @@ bool DEMO_APP::Run()
 			Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 0.0f)));
 
 			WorldMatrixObject = Plane_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Plane_Object.WorldMatrix);
-			
+
 			I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// Set vertex buffer
@@ -1340,7 +1351,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->DrawIndexed(6,0,0);
+			I_Context->DrawIndexed(6, 0, 0);
 
 
 #pragma endregion
@@ -1377,7 +1388,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
 	SAFE_RELEASE(SpotLightBuffer);//Cleared
 	SAFE_RELEASE(pDSState);//Cleared
-
+	SAFE_RELEASE(RasterState);//Cleared
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
 }
