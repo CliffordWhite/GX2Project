@@ -15,7 +15,7 @@ using namespace DirectX;
 struct SIMPLE_VERTEX
 {
 	XMFLOAT3 Verts;
-	XMFLOAT2 UV;
+	XMFLOAT3 UV;
 	XMFLOAT3 NRM;
 
 };

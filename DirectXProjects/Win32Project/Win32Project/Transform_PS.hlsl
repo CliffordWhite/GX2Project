@@ -17,6 +17,9 @@ struct V_IN
 cbuffer AmbientLight:register(b0)
 {
 	float4 A_Light;
+	float3 P_LightPos;
+	float motherofone;
+
 };
 // Pixel shader performing multi-texturing with a detail texture on a second UV channel
 // A simple optimization would be to pack both UV sets into a single register
@@ -36,5 +39,9 @@ float4 main(V_IN Input) : SV_TARGET
 		color.b = baseColor.a;
 	}
 
-	return color * A_Light; // return a transition based on the detail alpha
+	float3 pdir = normalize(P_LightPos - Input.World);
+		float3 Normal = normalize(Input.NrmH);
+		float4 p_light = clamp((dot(pdir, Normal) * baseColor), 0, 1);
+
+	return color * A_Light * p_light; // return a transition based on the detail alpha
 }

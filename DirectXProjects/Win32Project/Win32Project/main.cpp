@@ -93,7 +93,14 @@ class DEMO_APP
 	ID3D11Buffer *DirectionalLightBuffer = nullptr;//Cleared
 
 	ID3D11Buffer *SpotLightBuffer = nullptr;//Cleared
+	struct ALIGHT
+	{
+		XMFLOAT4 A_Light;
+		XMFLOAT3 P_LightPos;
+		float motherofone;
+	};
 
+	ALIGHT Alight;
 
 	struct DLIGHT
 	{
@@ -310,7 +317,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	hr = I_Device->CreateRenderTargetView(My_Texture2D, NULL, &I_RenderTargetView);
 	My_Texture2D->Release();
 
-	XMVECTOR CameraPOS = { 0.0f, 0.0f, -1.0f };
+	XMVECTOR CameraPOS = { 0.0f, 3.0f, -10.0f };
 	XMVECTOR CameraPOSLookdirection = { 0.0f, 0.0f, 0.0f };
 	XMVECTOR CameraPOSUP = { 0.0f, 1.0f, 0.0f };
 	SV_ViewMatrix = XMMatrixLookAtLH(CameraPOS, CameraPOSLookdirection, CameraPOSUP);
@@ -616,7 +623,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region Create and Set Plane
 #pragma region Create Plane
-	vector<XMFLOAT3> Plane_Vertices;
+	/*vector<XMFLOAT3> Plane_Vertices;
 	vector<XMFLOAT2> Plane_UVS;
 	vector<XMFLOAT3> Plane_Normals;
 	Plane_Object.loadOBJ("Plane.obj", Plane_Vertices, Plane_UVS, Plane_Normals);
@@ -631,11 +638,47 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		Plane_Pyramid[i].NRM.x = Plane_Normals[i].x;
 		Plane_Pyramid[i].NRM.y = Plane_Normals[i].y;
 		Plane_Pyramid[i].NRM.z = Plane_Normals[i].z;
-	}
+	}*/
+
+#pragma region Creating Plane
+	SIMPLE_VERTEX plane[4];
+	plane[0].Verts.x = -100;
+	plane[0].Verts.y = -5;
+	plane[0].Verts.z = 100;
+	plane[1].Verts.x = 100;
+	plane[1].Verts.y = -5;
+	plane[1].Verts.z = 100;
+	plane[2].Verts.x = -100;
+	plane[2].Verts.y = -5;
+	plane[2].Verts.z = -100;
+	plane[3].Verts.x = 100;
+	plane[3].Verts.y = -5;
+	plane[3].Verts.z = -100;
+	plane[0].NRM.x = 0;
+	plane[0].NRM.y = 1;
+	plane[0].NRM.z = 0;
+	plane[1].NRM.x = 0;
+	plane[1].NRM.y = 1;
+	plane[1].NRM.z = 0;
+	plane[2].NRM.x = 0;
+	plane[2].NRM.y = 1;
+	plane[2].NRM.z = 0;
+	plane[3].NRM.x = 0;
+	plane[3].NRM.y = 1;
+	plane[3].NRM.z = 0;
+	unsigned int planeindex[6];
+	planeindex[0] = 0;
+	planeindex[1] = 1;
+	planeindex[2] = 2;
+	planeindex[3] = 3;
+	planeindex[4] = 2;
+	planeindex[5] = 1;
+#pragma endregion
+
 
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC PlaneDesc;
-	PlaneDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 12;
+	PlaneDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
 	PlaneDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	PlaneDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	PlaneDesc.CPUAccessFlags = NULL;
@@ -644,13 +687,29 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// Fill in the subresource data.
 	D3D11_SUBRESOURCE_DATA Plane_SubresourceData;
-	Plane_SubresourceData.pSysMem = Plane_Pyramid;
+	Plane_SubresourceData.pSysMem = &plane;
 	Plane_SubresourceData.SysMemPitch = 0;
 	Plane_SubresourceData.SysMemSlicePitch = 0;
 
 
 	hr = I_Device->CreateBuffer(&PlaneDesc, &Plane_SubresourceData, &Plane_Object.ConstantBuffer);
 
+	// Fill in a buffer description.
+	D3D11_BUFFER_DESC PlaneIndexBufferDesc;
+	PlaneIndexBufferDesc.ByteWidth = sizeof(unsigned int)*6;
+	PlaneIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	PlaneIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	PlaneIndexBufferDesc.CPUAccessFlags = NULL;
+	PlaneIndexBufferDesc.MiscFlags = 0;
+	PlaneIndexBufferDesc.StructureByteStride = sizeof(unsigned int);
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA Plane_Index_Subresource_data;
+	Plane_Index_Subresource_data.pSysMem = &planeindex;
+	Plane_Index_Subresource_data.SysMemPitch = 0;
+	Plane_Index_Subresource_data.SysMemSlicePitch = 0;
+
+	hr = I_Device->CreateBuffer(&PlaneIndexBufferDesc, &Plane_Index_Subresource_data, &Plane_Object.IndexBuffer);
 
 
 
@@ -714,6 +773,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	deDepth.CPUAccessFlags = 0;
 	deDepth.MiscFlags = 0;
+
 
 	hr = I_Device->CreateTexture2D(&deDepth, NULL, &DepthBuffer);
 
@@ -805,9 +865,20 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	hr = I_Device->CreateBuffer(&SceneConstantBufferDesc, nullptr, &SceneConstantBuffer);
 
 
+	Alight.P_LightPos.x = -2.0f;
+	Alight.P_LightPos.y = 0.0f;
+	Alight.P_LightPos.z = 0.0f;
+	
+	Alight.A_Light.x = 0.4f;
+	Alight.A_Light.y = 0.4f;
+	Alight.A_Light.z = 0.4f;
+	Alight.A_Light.w = 1.0f;
+	
+
+
 	D3D11_BUFFER_DESC AmbientLightConstantBufferDesc;
 
-	AmbientLightConstantBufferDesc.ByteWidth = sizeof(XMFLOAT4);
+	AmbientLightConstantBufferDesc.ByteWidth = sizeof(ALIGHT);
 	AmbientLightConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	AmbientLightConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	AmbientLightConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -890,11 +961,11 @@ bool DEMO_APP::Run()
 	GetCursorPos(&currPos);
 	if (GetKeyState(VK_F6) & 0x1)
 	{
-		MoveCamera(30, SV_ViewMatrix);
+		MoveCamera(50, SV_ViewMatrix);
 	}
 	else
 	{
-		MoveCamera(30, SV_ViewMatrix_2);
+		MoveCamera(50, SV_ViewMatrix_2);
 	}
 
 	SV_Projection = XMMatrixIdentity();
@@ -927,14 +998,18 @@ bool DEMO_APP::Run()
 
 #pragma region Ambient Light
 
-	XMFLOAT4 LightColor;
-	ZeroMemory(&LightColor, sizeof(XMFLOAT4));
+	
 	if (GetKeyState(VK_F3) & 0x1)
 	{
-		LightColor.x = 0.4f;
-		LightColor.y = 0.4f;
-		LightColor.z = 0.4f;
-		LightColor.w = 1.0f;
+		Alight.P_LightPos.x = 1.0f;
+		Alight.P_LightPos.y = 0.0f;
+		Alight.P_LightPos.z = 0.0f;
+	}
+	else
+	{
+		Alight.P_LightPos.x = -1.0f;
+		Alight.P_LightPos.y = 0.0f;
+		Alight.P_LightPos.z = 0.0f;
 	}
 #pragma endregion
 
@@ -959,12 +1034,12 @@ bool DEMO_APP::Run()
 	if (GetKeyState(VK_F7) & 0x1)
 	{
 		SLight.Dir.x = 0.0f;
-		SLight.Dir.y = 0.0f;
-		SLight.Dir.z = -1.0f;
+		SLight.Dir.y = -1.0f;
+		SLight.Dir.z = 0.0f;
 
 		SLight.Pos.x = 0.0f;
-		SLight.Pos.y = 1.0f;
-		SLight.Pos.z = 3.0f;
+		SLight.Pos.y = 2.0f;
+		SLight.Pos.z = 4.0f;
 		SLight.Pos.w = 1.0f;
 
 	}
@@ -974,9 +1049,9 @@ bool DEMO_APP::Run()
 		SLight.Dir.y = -1.0f;
 		SLight.Dir.z = 0.0f;
 
-		SLight.Pos.x = 0.0f;
+		SLight.Pos.x = 5.0f;
 		SLight.Pos.y = 2.0f;
-		SLight.Pos.z = 1.0f;
+		SLight.Pos.z = 30.0f;
 		SLight.Pos.w = 1.0f;
 	}
 #pragma endregion
@@ -1021,7 +1096,7 @@ bool DEMO_APP::Run()
 
 			Cube_Object.SetWorldMatrix(XMMatrixIdentity());
 
-			Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 1.0f)));
+			Cube_Object.SetWorldMatrix(XMMatrixMultiply(Cube_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 0.0f)));
 
 			WorldMatrixObject = Cube_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Cube_Object.WorldMatrix);
 
@@ -1082,7 +1157,7 @@ bool DEMO_APP::Run()
 			//Map ALight
 			I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Local);
 
-			memcpy(Local.pData, &LightColor, sizeof(XMFLOAT4));
+			memcpy(Local.pData, &Alight, sizeof(ALIGHT));
 
 			I_Context->Unmap(AmbientLightBuffer, 0);
 
@@ -1108,7 +1183,7 @@ bool DEMO_APP::Run()
 
 			Star_Object.SetWorldMatrix(XMMatrixIdentity());
 
-			Star_Object.SetWorldMatrix(XMMatrixMultiply(Star_Object.WorldMatrix, XMMatrixTranslation(2.0f, 2.0f, 1.0f)));
+			Star_Object.SetWorldMatrix(XMMatrixMultiply(Star_Object.WorldMatrix, XMMatrixTranslation(7.0f, 2.0f, 1.0f)));
 
 			WorldMatrixObject = Star_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Star_Object.WorldMatrix);
 
@@ -1160,14 +1235,14 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->DrawIndexed(60, 0, 0);
+		//	I_Context->DrawIndexed(60, 0, 0);
 #pragma endregion
 
 #pragma region Draw Model
 
 			Model_Object.SetWorldMatrix(XMMatrixIdentity());
 
-			Model_Object.SetWorldMatrix(XMMatrixMultiply(Model_Object.WorldMatrix, XMMatrixTranslation(-3.0f, 2.0f, 1.0f)));
+			Model_Object.SetWorldMatrix(XMMatrixMultiply(Model_Object.WorldMatrix, XMMatrixTranslation(-7.0f, 2.0f, 1.0f)));
 
 			WorldMatrixObject = Model_Object.WorldMatrix = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Model_Object.WorldMatrix);
 
@@ -1209,7 +1284,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->Draw(36, 0);
+			//I_Context->Draw(36, 0);
 
 
 #pragma endregion
@@ -1218,22 +1293,27 @@ bool DEMO_APP::Run()
 
 			Plane_Object.SetWorldMatrix(XMMatrixIdentity());
 
-			Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, -1.0f, 0.0f)));
+			Plane_Object.SetWorldMatrix(XMMatrixMultiply(Plane_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 0.0f)));
 
 			WorldMatrixObject = Plane_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Plane_Object.WorldMatrix);
+			
+			I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// Set vertex buffer
 			UINT Plane_stride = sizeof(SIMPLE_VERTEX);
 			UINT Plane_offset = 0;
 			I_Context->IASetVertexBuffers(0, 1, &Plane_Object.ConstantBuffer, &Plane_stride, &Plane_offset);
 
-			//I_Context->IASetIndexBuffer(Plane_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Plane_offset);
+			I_Context->IASetIndexBuffer(Plane_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Plane_offset);
 
 			I_Context->VSSetShader(Plane_Object.VertexShader, NULL, 0);
 
 			I_Context->PSSetShader(Plane_Object.PixelShader[i], NULL, 0);
 
+			I_Context->PSSetShaderResources(0, 1, &Cube_Object.ShaderResourceView);
+
 			I_Context->IASetInputLayout(Plane_Object.InputLayout);
+
 			//mapping local to constantbuffer
 			D3D11_MAPPED_SUBRESOURCE Plane_Local;
 			I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &Plane_Local);
@@ -1260,7 +1340,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->Draw(12, 0);
+			I_Context->DrawIndexed(6,0,0);
 
 
 #pragma endregion
