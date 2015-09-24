@@ -45,7 +45,7 @@ float4 main(V_IN Input) : SV_TARGET
 
 		color *= (A_Light + p_light);
 
-	if (color.b <= 0.1f)
+	if (baseColor.a <= 0.1f)
 		discard;
 	return color; // return a transition based on the detail alpha
 }

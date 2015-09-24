@@ -27,6 +27,8 @@
 #include "Tron.h"
 #include "DDSTextureLoader.h"
 
+#include <thread>
+
 using namespace std;
 // BEGIN PART 1
 // TODO: PART 1 STEP 1a
@@ -64,6 +66,7 @@ class DEMO_APP
 	ID3D11Buffer *SceneConstantBuffer = nullptr;//cleared
 
 	ID3D11RasterizerState* RasterState = nullptr;//cleared
+	ID3D11RasterizerState* RasterState2 = nullptr;//cleared
 
 
 	XTime TotalTimeLoop;
@@ -158,6 +161,9 @@ class DEMO_APP
 	Create_D3Object PlaneTrans2_Object;
 	Create_D3Object PlaneTrans3_Object;
 	Create_D3Object Tree_Object;
+	Create_D3Object SkyBox_Object;
+	ID3D11PixelShader *SkyBoxPixelShader;
+
 
 
 #pragma endregion
@@ -360,6 +366,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	hr = I_Device->CreateBuffer(&CubeBufferDesc, &CubeSubResourceData, &Cube_Object.ConstantBuffer); // putting cube buffer into Device
+	hr = I_Device->CreateBuffer(&CubeBufferDesc, &CubeSubResourceData, &SkyBox_Object.ConstantBuffer); // putting cube buffer into Device
 
 	// Fill in a buffer description.
 	D3D11_BUFFER_DESC CubeIndexBufferDesc;
@@ -379,6 +386,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//unsigned int NumOIndexVerts = 1692;
 
 	hr = I_Device->CreateBuffer(&CubeIndexBufferDesc, &CubeIndexSubResourceData, &Cube_Object.IndexBuffer);
+	hr = I_Device->CreateBuffer(&CubeIndexBufferDesc, &CubeIndexSubResourceData, &SkyBox_Object.IndexBuffer);
 
 
 	D3D11_TEXTURE2D_DESC Texture2DDesc;
@@ -404,16 +412,29 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	}
 
 	hr = I_Device->CreateTexture2D(&Texture2DDesc, Tron_Cube, &Cube_Object.Texture2DBuffer);
+//	hr = I_Device->CreateTexture2D(&Texture2DDesc, Tron_Cube, &SkyBox_Object.Texture2DBuffer);
 
 	//ID3D11ShaderResourceView // ask about null. // samplerstate?
 
 	I_Device->CreateShaderResourceView(Cube_Object.Texture2DBuffer, NULL, &Cube_Object.ShaderResourceView);
+//	I_Device->CreateShaderResourceView(SkyBox_Object.Texture2DBuffer, NULL, &SkyBox_Object.ShaderResourceView);
 
 	//hr = CreateDDSTextureFromFile(I_Device, L"Tron.dds", (ID3D11Resource**)(&Cube_Object.Texture2DBuffer), &Cube_Object.ShaderResourceView);
 
-	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans_Object.Texture2DBuffer), &PlaneTrans_Object.ShaderResourceView);
-	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans2_Object.Texture2DBuffer), &PlaneTrans2_Object.ShaderResourceView);
-	hr = CreateDDSTextureFromFile(I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans3_Object.Texture2DBuffer), &PlaneTrans3_Object.ShaderResourceView);
+	thread PlaneThread;
+	thread PlaneThread2; 
+	thread PlaneThread3;
+
+	PlaneThread = thread(CreateDDSTextureFromFile,I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans_Object.Texture2DBuffer), &PlaneTrans_Object.ShaderResourceView,0);
+	PlaneThread2 = thread(CreateDDSTextureFromFile,I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans2_Object.Texture2DBuffer), &PlaneTrans2_Object.ShaderResourceView,0);
+	PlaneThread3 = thread(CreateDDSTextureFromFile,I_Device, L"numbers_test.dds", (ID3D11Resource**)(&PlaneTrans3_Object.Texture2DBuffer), &PlaneTrans3_Object.ShaderResourceView,0);
+
+	PlaneThread.join();
+	PlaneThread2.join();
+	PlaneThread3.join();
+
+	CreateDDSTextureFromFile(I_Device, L"SkyboxOcean.dds", (ID3D11Resource**)(&SkyBox_Object.Texture2DBuffer), &SkyBox_Object.ShaderResourceView);
+
 
 #pragma endregion
 
@@ -435,6 +456,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	I_Device->CreatePixelShader(DirectionalLight_PS, sizeof(DirectionalLight_PS), nullptr, &Cube_Object.PixelShader[1]);
 
 	I_Device->CreatePixelShader(SpotLight, sizeof(SpotLight), nullptr, &Cube_Object.PixelShader[2]);
+	
+	I_Device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &SkyBoxPixelShader);
+
+
 
 
 
@@ -591,7 +616,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		Model_Pyramid[i].Verts.y = Model_Vertices[i].y;
 		Model_Pyramid[i].Verts.z = Model_Vertices[i].z;
 		Model_Pyramid[i].UV.x = Model_UVS[i].x;
-		Model_Pyramid[i].UV.y = Model_UVS[i].y;
+		Model_Pyramid[i].UV.y = 1-Model_UVS[i].y;
 		Model_Pyramid[i].NRM.x = Model_Normals[i].x;
 		Model_Pyramid[i].NRM.y = Model_Normals[i].y;
 		Model_Pyramid[i].NRM.z = Model_Normals[i].z;
@@ -708,7 +733,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion
 #pragma endregion
 
-
 #pragma region Create and Set Plane
 #pragma region Create Plane
 	/*vector<XMFLOAT3> Plane_Vertices;
@@ -733,28 +757,37 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	plane[0].Verts.x = -100;
 	plane[0].Verts.y = -5;
 	plane[0].Verts.z = 100;
+
 	plane[1].Verts.x = 100;
 	plane[1].Verts.y = -5;
 	plane[1].Verts.z = 100;
+
 	plane[2].Verts.x = -100;
 	plane[2].Verts.y = -5;
 	plane[2].Verts.z = -100;
+
 	plane[3].Verts.x = 100;
 	plane[3].Verts.y = -5;
 	plane[3].Verts.z = -100;
+
 	plane[0].NRM.x = 0;
 	plane[0].NRM.y = 1;
 	plane[0].NRM.z = 0;
+
 	plane[1].NRM.x = 0;
 	plane[1].NRM.y = 1;
 	plane[1].NRM.z = 0;
+
 	plane[2].NRM.x = 0;
 	plane[2].NRM.y = 1;
 	plane[2].NRM.z = 0;
+
 	plane[3].NRM.x = 0;
 	plane[3].NRM.y = 1;
 	plane[3].NRM.z = 0;
+
 	unsigned int planeindex[6];
+
 	planeindex[0] = 0;
 	planeindex[1] = 1;
 	planeindex[2] = 2;
@@ -991,7 +1024,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion
 #pragma endregion
 
-
 #pragma region Sampler and Blend State;
 
 	D3D11_BLEND_DESC BlendDesc;
@@ -1022,7 +1054,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-#pragma region Raster State
+#pragma region Raster States
 	D3D11_RASTERIZER_DESC RasterDes;
 	ZeroMemory(&RasterDes, sizeof(RasterDes));
 	RasterDes.FrontCounterClockwise = false;
@@ -1032,6 +1064,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	RasterDes.MultisampleEnable = true;
 
 	I_Device->CreateRasterizerState(&RasterDes, &RasterState);
+
+	RasterDes.CullMode = D3D11_CULL_FRONT;
+	I_Device->CreateRasterizerState(&RasterDes, &RasterState2);
+
+
 #pragma endregion
 
 #pragma region DepthBuffer
@@ -1263,8 +1300,11 @@ bool DEMO_APP::Run()
 	I_Context->OMSetRenderTargets(1, &I_RenderTargetView, DepthStencilView);
 
 	float ColorRGBA[4] = { 0, 0, 1, 1 };
+
+
 	I_Context->ClearRenderTargetView(I_RenderTargetView, ColorRGBA);
 	I_Context->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
 #pragma endregion
 
 #pragma region point Light
@@ -1333,7 +1373,107 @@ bool DEMO_APP::Run()
 #pragma region For loop for drawing and viewports
 	for (size_t j = 0; j < 2; j++)
 	{
-		if (j == 1)
+#pragma region Draw Skybox
+
+	I_Context->RSSetState(RasterState2);
+
+	SkyBox_Object.WorldMatrix = Cube_Object.WorldMatrix;
+
+	SkyBox_Object.SetWorldMatrix(XMMatrixIdentity());
+
+	SkyBox_Object.WorldMatrix = XMMatrixScaling(200000, 200000, 200000);
+
+	SkyBox_Object.WorldMatrix.r[3] = ConstantScene.viewMatrix.r[3];
+
+	SkyBox_Object.SetWorldMatrix(XMMatrixMultiply(SkyBox_Object.WorldMatrix, XMMatrixTranslation(0.0f, -100000.0f, 0.0f)));
+
+	WorldMatrixObject = SkyBox_Object.WorldMatrix;
+
+	// Set vertex buffer
+	UINT Skystride = sizeof(_OBJ_VERT_);
+	UINT Skyoffset = 0;
+	I_Context->IASetVertexBuffers(0, 1, &Cube_Object.ConstantBuffer, &Skystride, &Skyoffset);
+
+	I_Context->IASetIndexBuffer(Cube_Object.IndexBuffer, DXGI_FORMAT_R32_UINT, Skyoffset);
+
+	I_Context->VSSetShader(Cube_Object.VertexShader, NULL, 0);
+
+	I_Context->PSSetShader(SkyBoxPixelShader, NULL, 0);
+
+	I_Context->PSSetShaderResources(0, 1, &SkyBox_Object.ShaderResourceView);
+
+	I_Context->IASetInputLayout(Cube_Object.InputLayout);
+
+
+	I_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+
+	//mapping local to constantbuffer
+	D3D11_MAPPED_SUBRESOURCE SkyLocal;
+	I_Context->Map(ConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &ToShader, sizeof(SEND_TO_VRAM));
+
+	I_Context->Unmap(ConstantBuffer, 0);
+
+
+	//World Constant buffer mapping
+	I_Context->Map(WorldConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &WorldMatrixObject, sizeof(XMMATRIX));
+
+	I_Context->Unmap(WorldConstantBuffer, 0);
+
+
+	//Scene Constant buffer mapping
+	I_Context->Map(SceneConstantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &ConstantScene, sizeof(CONSTANTSCENE));
+
+	I_Context->Unmap(SceneConstantBuffer, 0);
+
+
+
+	//Map DLight
+	I_Context->Map(DirectionalLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &Dlight, sizeof(DLIGHT));
+
+	I_Context->Unmap(DirectionalLightBuffer, 0);
+
+
+	//Map ALight
+	I_Context->Map(AmbientLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &Alight, sizeof(ALIGHT));
+
+	I_Context->Unmap(AmbientLightBuffer, 0);
+
+	//Map SLight
+	I_Context->Map(SpotLightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, 0, &SkyLocal);
+
+	memcpy(SkyLocal.pData, &SLight, sizeof(SLIGHT));
+
+	I_Context->Unmap(SpotLightBuffer, 0);
+
+
+	I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
+
+	I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
+
+	I_Context->PSSetSamplers(0, 1, &SamplerState);
+
+	I_Context->DrawIndexed(1692, 0, 0);// drawing cube
+	I_Context->RSSetState(NULL);
+
+
+#pragma endregion
+
+
+	I_Context->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	if (j == 1)
 		{
 			ConstantScene.viewMatrix = SV_ViewMatrix;
 			I_Context->RSSetViewports(1, &ViewPort[j]);
@@ -1507,7 +1647,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->DrawIndexed(60, 0, 0);
+			//I_Context->DrawIndexed(60, 0, 0);
 #pragma endregion
 
 #pragma region Draw Model
@@ -1556,7 +1696,7 @@ bool DEMO_APP::Run()
 			I_Context->VSSetConstantBuffers(0, 1, &WorldConstantBuffer);
 			I_Context->VSSetConstantBuffers(1, 1, &SceneConstantBuffer);
 
-			I_Context->Draw(36, 0);
+		//	I_Context->Draw(36, 0);
 
 
 #pragma endregion
@@ -1567,7 +1707,7 @@ bool DEMO_APP::Run()
 
 			Tree_Object.SetWorldMatrix(XMMatrixMultiply(Tree_Object.WorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 10.0f)));
 
-			WorldMatrixObject = Tree_Object.WorldMatrix;// = XMMatrixMultiply(XMMatrixRotationY((FLOAT)(TotalTimeLoop.TotalTime())), Tree_Object.WorldMatrix);
+			WorldMatrixObject = Tree_Object.WorldMatrix;
 
 			// Set vertex buffer
 			UINT Tree_stride = sizeof(SIMPLE_VERTEX);
@@ -1720,11 +1860,14 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(AmbientLightBuffer);//Cleared
 	SAFE_RELEASE(BlendState);//Cleared
 	SAFE_RELEASE(BlendStateNULL)//Cleared
-		SAFE_RELEASE(SamplerState);//Cleared
+	SAFE_RELEASE(SamplerState);//Cleared
 	SAFE_RELEASE(DirectionalLightBuffer);//Cleared
 	SAFE_RELEASE(SpotLightBuffer);//Cleared
 	SAFE_RELEASE(pDSState);//Cleared
 	SAFE_RELEASE(RasterState);//Cleared
+	SAFE_RELEASE(RasterState2);//Cleared
+	SAFE_RELEASE(SkyBoxPixelShader);//Cleared
+	
 
 	UnregisterClass(L"DirectXApplication", application);
 	return true;

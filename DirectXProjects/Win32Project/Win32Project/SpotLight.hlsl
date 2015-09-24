@@ -52,7 +52,7 @@ float4 main(V_IN Input) : SV_TARGET
 	float3 halfvector = normalize((-Sdir) + viewdir);
 	float intensity = max(clamp(dot(Input.Nrm, normalize(halfvector)), 0, 1), 1);
 	RESULT *= intensity;
-	if (RESULT.b <= 0.1f)
+	if (baseColor.a <= 0.1f)
 		discard;
 	return RESULT; // return a transition based on the detail alpha
 }
